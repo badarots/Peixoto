@@ -1,5 +1,5 @@
 [Unit]
-Description=Cliente crossbar.io e controlador do raspi
+Description=Crossbar.io pi client
 After=syslog.target network.target
 
 [Service]
@@ -8,7 +8,7 @@ User=badaro
 StandardInput=null
 StandardOutput=syslog
 StandardError=syslog
-SyslogIdentifier=raspi_log
+SyslogIdentifier=peixoto_log
 ExecStart=/home/badaro/scripts/client.py
 Restart=always
 
