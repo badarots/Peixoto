@@ -1,0 +1,15 @@
+[Unit]
+Description=Crossbar.io
+After=network.target
+
+[Service]
+Type=simple
+User=root
+StandardInput=null
+StandardOutput=journal
+StandardError=journal
+ExecStart=/opt/pypy/bin/crossbar start --cbdir=/home/badaro/.crossbar
+Restart=on-abort
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,16 @@
+[Unit]
+Description=Cliente crossbar.io e controlador do raspi
+After=syslog.target network.target
+
+[Service]
+Type=simple
+User=badaro
+StandardInput=null
+StandardOutput=syslog
+StandardError=syslog
+SyslogIdentifier=raspi_log
+ExecStart=/home/badaro/scripts/client.py
+Restart=always
+
+[Install]
+WantedBy=multi-user.target

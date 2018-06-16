@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+
+<html>
+<meta charset="utf-8"></meta>
+
+<div class="title-row">
+  <h1>Tratador</h1>
+</div>
+
+<div class='button-row'>
+  <button class="add_button" onclick='addElement()'>Adcionar</button>
+  <button class="add_button">Restaurar</button>
+  <button class="add_button" onclick='removeAll()'>Limpar</button>
+</div>
+
+<form class='form-basic' name='tratador' id='tratador-agenda'>
+  <div class='line-row'>
+    <span>Horário</span>
+    <span>Ração (kg)</span>
+  </div>
+
+</form>
+
+<script type="text/javascript">
+
+  var i = 0; /* Set Global Variable i */
+  function increment(){
+  i += 1; /* Function for automatic increment of field's "Name" attribute. */
+  }
+  /*
+  Tirado do site: https://www.formget.com/how-to-dynamically-add-and-remove-form-fields-using-javascript/
+  ---------------------------------------------
+  Function to Remove Form Elements Dynamically
+  ---------------------------------------------
+
+  */
+  function removeElement(parentDiv, childDiv){
+    if (childDiv == parentDiv){
+      alert("The parent div cannot be removed.");
+    }
+    else if (document.getElementById(childDiv)){
+      var child = document.getElementById(childDiv);
+      var parent = document.getElementById(parentDiv);
+      parent.removeChild(child);
+    }
+    else{
+      alert("Child div has already been removed or does not exist.");
+      return false;
+    }
+  }
+  /*
+  ----------------------------------------------------------------------------
+  Functions that will be called upon, when user click on the Name text field.
+  ----------------------------------------------------------------------------
+  */
+  function addElement(){
+    var div = document.createElement('div');
+    div.setAttribute("id", "id_" + i);
+    div.setAttribute("class", 'line-row');
+
+    var hour = document.createElement("input");
+    hour.setAttribute("type", "text");
+    hour.setAttribute("name", "hora_" + i);
+    hour.setAttribute('placeholder', '--:--');
+    hour.classList.add('input_list');
+
+    var racao = document.createElement("input");
+    racao.setAttribute("type", "number");
+    racao.setAttribute("min", "0")
+    racao.setAttribute("name", "racao_" + i);
+    racao.setAttribute('placeholder', 'kg');
+    racao.classList.add('input_list');
+
+    var close = document.createElement("img");
+    close.setAttribute("onclick",
+                       "removeElement('tratador-agenda','id_" + i + "')");
+    close.setAttribute("src", "delete.png");
+
+    increment();
+
+    div.appendChild(hour);
+    div.appendChild(racao);
+    div.appendChild(close);
+
+    document.getElementById("tratador-agenda").appendChild(div);
+  }
+  /*
+  -----------------------------------------------------------------------------
+  Functions that will be called upon, when user click on the Reset Button.
+  ------------------------------------------------------------------------------
+  */
+  function removeAll(){
+    document.getElementById('tratador-agenda').innerHTML = '';
+  }
+</script>
+</html>

@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+    <title>badcross</title>
+
+    <link rel="stylesheet" href="assets/demo.css">
+    <link rel="stylesheet" href="assets/form-basic.css">
+
+    <script src="assets/jquery-3.3.1.min.js"></script>
+    <script>AUTOBAHN_DEBUG = false;</script>
+
+    <script type="text/javascript" src="assets/autobahn.min.js"></script>
+    <script type="text/javascript" src="assets/connection.js"></script>
+
+    <script type="text/javascript" src="assets/formToJson.js"></script>
+    <script type="text/javascript" src="assets/app.js"></script>
+
+</head>
+
+
+<header>
+    <h1>badcross</h1>
+    <a href="#" id="connect">Conectar</a>
+</header>
+
+<ul>
+    <li><a href="#" id="aerador" class="links" page="aerador">Aerador</a></li>
+    <li><a href="#" id="tratador" class="links" page="tratador">Tratador</a></li>
+    <li><a href="#" id="tratador" class="links" page="leds">Leds</a></li>
+</ul>
+
+<div class="main-content">
+    <div id="content"></div>
+
+    <button class="submit_button" id="envia">Enviar</button>
+
+    <!--
+    <div class="results">
+        <h2 class="results__heading">Form Data</h2>
+        <pre class="results__display-wrapper" id="result"><code class="results__display"></code></pre>
+    </div>
+    -->
+
+    <div class="results">
+        <h2 class="results__heading">Log</h2>
+        <pre class="results__display-wrapper" id="log"><code class="results__display"></code></pre>
+    </div>
+</div>
+
+</body>
+</html>
