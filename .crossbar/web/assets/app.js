@@ -59,10 +59,20 @@ var ola = function ola(event) {
   console.log('Click');
 };
 
+// mascara dos campos de tempo
+var timeMask = {translation: {
+                              H: {pattern: /[0-2]/, optional: true},
+                              h: {pattern: /[0-9]/},
+                              M: {pattern: /[0-5]/},
+                              m: {pattern: /[0-9]/}
+                                  },
+                    placeholder: '__:__'
+};
 
 /*
  * Usa jquery para carregar dinamicamente diferentes formulários
 */
+
 
 $(document).ready(function(){
     // Define forumario aerador como inicial
@@ -83,4 +93,6 @@ $(document).ready(function(){
 
     // Gera e envia json ou clicar em Enviar
     $("#envia").on('click', handleFormSubmit);
+
+
 });

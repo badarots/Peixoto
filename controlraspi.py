@@ -7,38 +7,34 @@ from apscheduler.triggers.combining import OrTrigger
 from apscheduler.triggers.cron import CronTrigger
 # from apscheduler.triggers.date import DateTrigger
 
+
 class Controlraspi(object):
     """
     A simple Web application that publishes an event every time the
     url "/" is visited.
     """
 
-    def __init__(self, wamp_comp, scheduler, raspi=False):
-        self.ledPin = {"led1": 2, "led2": 3}
-        # guarda estado e período dos leds
-        self.ledLigado = {led: [False, 0] for led in self.ledPin}
-        self.ledState = {led: False for led in self.ledPin}
+    def __init__(self, wamp_comp, scheduler, teste=False):
+        self.pins = {"tratador": 2, "aerador": 3}
+        self.agenda = {}
 
         # configurações para o raspi
-        self.raspi = raspi
-        if raspi:
+        self.teste = teste
+        if not teste:
             import RPi.GPIO as gpio
 
-            gpio.setmode(gpio.BCM)
+            self.gpio.setmode(gpio.BCM)
 
             for led in self.ledPin:
-                gpio.setup(self.ledPin[led], gpio.OUT, initial=gpio.HIGH)
-
+                self.gpio.setup(self.ledPin[led], gpio.OUT, initial=gpio.HIGH)
 
         # wamp config
-
         self._session = None  # "None" while we're disconnected from WAMP router
         self._wamp = wamp_comp
         # associate ourselves with WAMP session lifecycle
         self._wamp.on('join', self._initialize)
         self._wamp.on('leave', self._uninitialize)
 
-        self.i = 0
         # configurações do scheduler
         self.scheduler = scheduler
         # scheduler.add_job(self.tick, 'interval', seconds=3)
@@ -57,7 +53,7 @@ class Controlraspi(object):
 
         try:
             yield session.register(self.atualizar, u'com.exec.atualizar')
-            yield session.register(self.update_status, u'com.exec.status' )
+            yield session.register(self.update_status, u'com.exec.status')
             print("procedimentos registrados")
         except Exception as e:
             print("não for possível registrar os procedimentos: {0}".format(e))
@@ -85,7 +81,7 @@ class Controlraspi(object):
             resposta += 'ERRO, mensagem: ' + str(e)
 
         else:
-            resposta += 'Atualizados: '
+            resposta += 'Atualizado: '
             if 'leds' in agenda:
                 resposta += 'Leds '
                 self.attLeds(agenda['leds'])
@@ -95,6 +91,11 @@ class Controlraspi(object):
             if 'aerador' in agenda:
                 resposta += 'Aeradores'
                 self.attAerador(agenda['aerador'])
+
+            # atualiza agenda na memória
+            self.agenda = agenda
+
+
 
         print(resposta)
         return resposta
@@ -118,9 +119,9 @@ class Controlraspi(object):
                     try:
                         key = k.split('_')
                         find = (valid_options.index(key[0]) + 1) % 2
-                        opt = valid_opions[find] +'_'+ key[1]
+                        opt = valid_opions[find] + '_' + key[1]
 
-                        sched.append([kw[valid_options[0] +'_'+ key[1]], kw[valid_options[1] +'_'+ key[1]]])
+                        sched.append([kw[valid_options[0] + '_' + key[1]], kw[valid_options[1] + '_' + key[1]]])
                         visited.append(opt)
                     except Exception:
                         raise ValueError('Há campos não preenchidos')
@@ -174,12 +175,14 @@ class Controlraspi(object):
     def attAerador(self, agenda):
 
         def ligar():
-            print('liguei')
+            print('aerador ligado')
+            self.digitalWrite(self.pins['aerador'], True)
 
         def desligar():
-            print('desliguei')
+            print('aerador desligado')
+            self.digitalWrite(self.pins['aerador'], False)
 
-        # atualiza o estado atual na nova configuração
+        # atualiza o estado atual para nova configuração
         # se agenda está vazia: deslige
         if agenda:
             now = dt.datetime.now()
@@ -217,7 +220,7 @@ class Controlraspi(object):
             hoje = dt.date.today()
             date = dt.datetime.combine(date=hoje, time=fim)
             if inicio > fim:
-                date += dt.timedelta(days = 1)
+                date += dt.timedelta(days=1)
             lista_desligar.append(self.geraCronTrigger(date))
         trigger_list.append(lista_desligar)
 
@@ -237,8 +240,26 @@ class Controlraspi(object):
     # agenda do Tratador tem o format [[hora (datetime), ração (int)], ...]
     def attTratador(self, agenda):
 
-        def ligar():
-            pass
+        def ligar(racao):
+            print('tratador ligado', racao)
+
+            self.digitalWrite(self.pins['tratador'], True)
+
+            self.scheduler.add_job(desligar, 'date', run_date=dt.datetime.now() + dt.timedelta(seconds=2))
+
+        def desligar():
+            print('fim do pulso do tratador')
+            self.digitalWrite(self.pins['tratador'], False)
+
+        # exclui jobs antigos
+        jobs = self.scheduler.get_jobs()
+        for job in jobs:
+            if 'ligar_tratador' in job.id:
+                job.remove()
+
+        # gera novos jobs
+        for i in range(len(agenda)):
+            self.scheduler.add_job(ligar, args=[agenda[i][1]], trigger=self.geraCronTrigger(agenda[i][0]), id='ligar_tratador_' + str(i))
 
     def attLeds(self, agenda):
         pass
@@ -246,6 +267,15 @@ class Controlraspi(object):
     def geraCronTrigger(self, time):
         return CronTrigger(hour=time.hour, minute=time.minute)
 
+    def digitalWrite(self, pin, state):
+        if not self.teste:
+            # o led liga em LOW, por isso o not na frente de state
+            self.gpio.output(pin, not state)
+
+    def cleanup(self):
+        print("limpando pinos")
+        if not self.teste:
+            self.gpio.cleanup()
 
     def tick(self):
         self.i += 1

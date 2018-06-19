@@ -48,6 +48,7 @@
       return false;
     }
   }
+
   /*
   ----------------------------------------------------------------------------
   Functions that will be called upon, when user click on the Name text field.
@@ -61,20 +62,24 @@
     var hour = document.createElement("input");
     hour.setAttribute("type", "text");
     hour.setAttribute("name", "hora_" + i);
-    hour.setAttribute('placeholder', '--:--');
     hour.classList.add('input_list');
+    $(hour).mask("Hh:Mm", timeMask);
+
+
 
     var racao = document.createElement("input");
-    racao.setAttribute("type", "number");
+    racao.setAttribute("type", "text");
     racao.setAttribute("min", "0")
     racao.setAttribute("name", "racao_" + i);
     racao.setAttribute('placeholder', 'kg');
     racao.classList.add('input_list');
+    $(racao).mask("0#")
+
 
     var close = document.createElement("img");
     close.setAttribute("onclick",
                        "removeElement('tratador-agenda','id_" + i + "')");
-    close.setAttribute("src", "delete.png");
+    close.setAttribute("src", "assets/delete.png");
 
     increment();
 
@@ -92,5 +97,6 @@
   function removeAll(){
     document.getElementById('tratador-agenda').innerHTML = '';
   }
+
 </script>
 </html>

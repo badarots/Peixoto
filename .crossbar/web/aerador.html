@@ -63,12 +63,16 @@
     inicio.setAttribute("name", "inicio_" + i);
     inicio.setAttribute('placeholder', '--:--');
     inicio.classList.add('input_list');
+    $(inicio).mask("Hh:Mm", timeMask);
+
 
     var fim = document.createElement("input");
     fim.setAttribute("type", "text");
     fim.setAttribute("name", "fim_" + i);
     fim.setAttribute('placeholder', '--:--');
     fim.classList.add('input_list');
+    $(fim).mask("Hh:Mm", timeMask);
+
 
     var close = document.createElement("img");
     close.setAttribute("onclick",
