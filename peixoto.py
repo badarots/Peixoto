@@ -1,3 +1,5 @@
+#!/usr/bin/python
+
 import sys
 # import para o autobahn
 from autobahn.twisted.component import Component
