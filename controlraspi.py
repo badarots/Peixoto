@@ -22,11 +22,11 @@ class Controlraspi(object):
         self.teste = teste
         if not teste:
             import RPi.GPIO as gpio
+            self.gpio = gpio
 
             self.gpio.setmode(gpio.BCM)
-
-            for led in self.ledPin:
-                self.gpio.setup(self.ledPin[led], gpio.OUT, initial=gpio.HIGH)
+            for pin in self.pins:
+                self.gpio.setup(self.pins[pin], self.gpio.OUT, initial=self.gpio.HIGH)
 
         # wamp config
         self._session = None  # "None" while we're disconnected from WAMP router
