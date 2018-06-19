@@ -1,3 +1,25 @@
+## Afazeres
+ 
+WAMP
+- [x] Estabelecer comunicação
+- [x] Definir rota de conexão
+- [x] Processamento de mensagens
+- [ ] Autenticação
+- [ ] Criptografia
+
+App
+- [x] Agendamento
+- [x] Inicialização com systemd
+- [x] Log (melhorar)
+- [ ] Informar status aos clientes
+- [ ] Controle de velocidade do tratador
+
+Site
+- [x] Formulários
+- [ ] Painel de informações
+- [ ] Formulário de autenticação
+- [ ] Otimização para celular
+
 ## Inicialização atomática
 Para habilitar a inicialização automática do crossbar e do peixoto copie os arquivos ``crossbar.service`` e ``peixoto.service`` dentro da pasta ``services`` para:
 
@@ -11,6 +33,5 @@ E execute:
 Para salvar a saída do peixoto no arquivo ``/var/log/peixoto.log`` copie o arquivo ``peixoto.conf`` dentro da pasta ``services`` para:
 
 > /etc/rsyslog.d/
-
 
 Referência: [stackoverflow](https://stackoverflow.com/questions/37585758/how-to-redirect-output-of-systemd-service-to-a-file)
