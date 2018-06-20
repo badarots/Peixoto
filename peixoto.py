@@ -1,6 +1,5 @@
-#!/usr/bin/python
-
 import sys
+
 # import para o autobahn
 from autobahn.twisted.component import Component
 from twisted.internet.defer import Deferred, inlineCallbacks
@@ -78,4 +77,4 @@ if __name__ == '__main__':
         react(main, [controller, component, scheduler])
     except (KeyboardInterrupt, SystemExit):
         controller.cleanup()
-        print('Tchau!')
+        print('Desligamento: tchau!')

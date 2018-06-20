@@ -1,5 +1,5 @@
 ## Afazeres
- 
+
 WAMP
 - [x] Estabelecer comunicação
 - [x] Definir rota de conexão
@@ -10,15 +10,15 @@ WAMP
 App
 - [x] Agendamento
 - [x] Inicialização com systemd
-- [x] Log (melhorar)
+- [x] Log
 - [ ] Informar status aos clientes
 - [ ] Controle de velocidade do tratador
 
 Site
 - [x] Formulários
-- [ ] Painel de informações
 - [ ] Formulário de autenticação
 - [ ] Otimização para celular
+- [ ] Painel de informações
 
 ## Inicialização atomática
 Para habilitar a inicialização automática do crossbar e do peixoto copie os arquivos ``crossbar.service`` e ``peixoto.service`` dentro da pasta ``services`` para:
@@ -27,8 +27,12 @@ Para habilitar a inicialização automática do crossbar e do peixoto copie os a
 
 E execute:
 
-    # systemctl enable crossbar.service
-    # systemctl enable peixoto.service
+    # systemctl enable crossbar
+    # systemctl enable peixoto
+
+A saída do programa será salva no arquivo ``~/Peixoto/log/peixoto.log``
+
+### Desatualizado
 
 Para salvar a saída do peixoto no arquivo ``/var/log/peixoto.log`` copie o arquivo ``peixoto.conf`` dentro da pasta ``services`` para:
 

@@ -48,7 +48,7 @@ class Controlraspi(object):
         # reseta valores de reconexão
         # está mal implementado, se houver mais de um transport não saberei
         # reseta. tenho que encontrar o transporte em uso na conexão
-        print("Resetando valores de reconexão")
+        print("resetando valores de reconexão")
         self._wamp._transports[0].reset()
 
         try:
@@ -56,7 +56,7 @@ class Controlraspi(object):
             yield session.register(self.update_status, u'com.exec.status')
             print("procedimentos registrados")
         except Exception as e:
-            print("não for possível registrar os procedimentos: {0}".format(e))
+            print("Erro: não for possível registrar os procedimentos: {0}".format(e))
 
     def _uninitialize(self, session, reason):
         print(session, reason)
@@ -78,7 +78,7 @@ class Controlraspi(object):
             agenda = self.loadMsg(payload)
         except Exception as e:
             print(e)
-            resposta += 'ERRO, mensagem: ' + str(e)
+            resposta += 'Alerta, mensagem: ' + str(e)
 
         else:
             resposta += 'Atualizado: '
@@ -124,7 +124,7 @@ class Controlraspi(object):
                         sched.append([kw[valid_options[0] + '_' + key[1]], kw[valid_options[1] + '_' + key[1]]])
                         visited.append(opt)
                     except Exception:
-                        raise ValueError('Há campos não preenchidos')
+                        raise ValueError('há campos não preenchidos')
 
             # valida e converte as informações contidas nos pares
             for a in sched:
@@ -133,7 +133,7 @@ class Controlraspi(object):
                         if a[i].isdigit():
                             a[i] = int(a[i])
                         else:
-                            raise ValueError("Quantidade de ração inválida:", a[i])
+                            raise ValueError("quantidade de ração inválida:", a[i])
 
                     elif valid_options[i] in ['hora', 'inicio', 'fim']:
                         formato = '%H'
@@ -144,7 +144,7 @@ class Controlraspi(object):
                             t = dt.datetime.strptime(a[i], formato).time()
                             a[i] = t
                         except Exception:
-                            raise ValueError("Formato de hora inválido:", a[i])
+                            raise ValueError("formato de hora inválido:", a[i])
 
             return sched
 
@@ -153,7 +153,7 @@ class Controlraspi(object):
 
         for k in kw:
             if k not in valid_msg:
-                raise ValueError("Mensagens do tipo '{}' não são suportadas".format(k))
+                raise ValueError("mensagens do tipo '{}' não são suportadas".format(k))
 
             # procura pelas informações contidadas em casa tipo de msg
             # e define o formato da lista final de agendamentos usando
@@ -175,11 +175,11 @@ class Controlraspi(object):
     def attAerador(self, agenda):
 
         def ligar():
-            print('aerador ligado')
+            print('Aerador: ligado')
             self.digitalWrite(self.pins['aerador'], True)
 
         def desligar():
-            print('aerador desligado')
+            print('Aerador: desligado')
             self.digitalWrite(self.pins['aerador'], False)
 
         # atualiza o estado atual para nova configuração
@@ -241,14 +241,14 @@ class Controlraspi(object):
     def attTratador(self, agenda):
 
         def ligar(racao):
-            print('tratador ligado', racao)
+            print('Tratador: ligado', racao)
 
             self.digitalWrite(self.pins['tratador'], True)
 
             self.scheduler.add_job(desligar, 'date', run_date=dt.datetime.now() + dt.timedelta(seconds=2))
 
         def desligar():
-            print('fim do pulso do tratador')
+            print('Tratador: fim do pulso')
             self.digitalWrite(self.pins['tratador'], False)
 
         # exclui jobs antigos
@@ -273,7 +273,7 @@ class Controlraspi(object):
             self.gpio.output(pin, not state)
 
     def cleanup(self):
-        print("limpando pinos")
+        print("Desligamento: limpando pinos")
         if not self.teste:
             self.gpio.cleanup()
 
