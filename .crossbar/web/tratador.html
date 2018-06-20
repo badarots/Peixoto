@@ -57,7 +57,7 @@
   function addElement(){
     var div = document.createElement('div');
     div.setAttribute("id", "id_" + i);
-    div.setAttribute("class", 'line-row');
+    div.classList.add("line-row", "input_field");
 
     var hour = document.createElement("input");
     hour.setAttribute("type", "text");
@@ -95,7 +95,8 @@
   ------------------------------------------------------------------------------
   */
   function removeAll(){
-    document.getElementById('tratador-agenda').innerHTML = '';
+    $('.input_field').remove();
+    i = 0;
   }
 
 </script>
