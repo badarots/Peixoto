@@ -30,7 +30,7 @@ E execute:
     # systemctl enable crossbar
     # systemctl enable peixoto
 
-A saída do programa será salva no arquivo ``~/Peixoto/log/peixoto.log``
+A saída do programa será salva no arquivo ``/home/badaro/log/peixoto.log``
 
 ### Desatualizado
 

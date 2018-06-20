@@ -9,7 +9,7 @@ StandardInput=null
 #StandardOutput=syslog
 #StandardError=syslog
 #SyslogIdentifier=peixoto_log
-ExecStart=/bin/sh -c '/usr/bin/python -u /home/badaro/Peixoto/peixoto.py 2>&1 >> /home/badaro/Peixoto/log/peixoto.log'
+ExecStart=/bin/sh -c '/usr/bin/python -u /home/badaro/Peixoto/peixoto.py 2>&1 >> /home/badaro/log/peixoto.log'
 Restart=always
 
 [Install]
