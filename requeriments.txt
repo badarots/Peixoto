@@ -4,3 +4,4 @@ pyopenssl
 service_identity
 autobahn
 apscheduler
+sqlalchemy

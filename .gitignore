@@ -5,8 +5,9 @@
 Pipfile*
 downloads/
 
-# log
+# log, banco de dados e arquivos gerados
 log/
+dados/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

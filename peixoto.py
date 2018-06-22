@@ -5,15 +5,31 @@ from autobahn.twisted.component import Component
 from twisted.internet.defer import Deferred, inlineCallbacks
 from twisted.internet.task import react
 
-# import para o APScheler
-from apscheduler.schedulers.twisted import TwistedScheduler
-
 # import do controlador do raspi
-from controlraspi import Controlraspi
+import controlraspi as app
 
 
 @inlineCallbacks
-def main(reactor, controller, component, scheduler):
+def main(reactor, teste):
+    # configuração do cliente WAMP
+    component = Component(
+        transports=[
+            {
+                u"url": u"ws://hackerspace.if.usp.br/crossbar/ws",
+                # you can set various websocket options here if you want
+                u"max_retries": -1,
+                u"initial_retry_delay": 5,
+                u"options": {
+                    u"open_handshake_timeout": 30,
+                }
+            },
+        ],
+        realm=u"realm1",
+    )
+
+
+    # cria app principal
+    controller = app.Controlraspi(component, teste=teste)
 
     # we don't *have* to hand over control of the reactor to
     # component.run -- if we don't want to, we call .start()
@@ -39,42 +55,17 @@ def main(reactor, controller, component, scheduler):
     yield done
 
 if __name__ == '__main__':
-        # configuração do cliente WAMP
-    component = Component(
-        transports=[
-            {
-                u"url": u"ws://hackerspace.if.usp.br/crossbar/ws",
-                # you can set various websocket options here if you want
-                u"max_retries": -1,
-                u"initial_retry_delay": 5,
-                u"options": {
-                    u"open_handshake_timeout": 30,
-                }
-            },
-        ],
-        realm=u"realm1",
-    )
-
-    # criação do scheduler
-    scheduler = TwistedScheduler()
-
     try:
         arg = sys.argv[1]
     except Exception:
         arg = None
 
-    if arg == 'raspi':
-        teste = False
-        print('GPIO habilitados')
-    else:
-        teste = True
-        print('Rodando em modo de teste, GPIO desbilitados')
+    teste = (arg != 'raspi')
 
-    # cria app principal
-    controller = Controlraspi(component, scheduler, teste=teste)
 
     try:
-        react(main, [controller, component, scheduler])
-    except (KeyboardInterrupt, SystemExit):
-        controller.cleanup()
-        print('Desligamento: tchau!')
+        react(main, [teste])
+    except (KeyboardInterrupt, SystemExit) as e:
+        app.exit(e)
+    except Exception as e:
+        app.exit(e)

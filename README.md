@@ -11,6 +11,7 @@ App
 - [x] Agendamento
 - [x] Inicialização com systemd
 - [x] Log
+- [x] Banco de dados (incompleto)
 - [ ] Informar status aos clientes
 - [ ] Controle de velocidade do tratador
 
