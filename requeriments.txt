@@ -1,7 +1,7 @@
 crossbar
+autobahn
 twisted
 pyopenssl
 service_identity
-autobahn
 apscheduler
 sqlalchemy

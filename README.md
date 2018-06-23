@@ -11,7 +11,7 @@ App
 - [x] Agendamento
 - [x] Inicialização com systemd
 - [x] Log
-- [x] Banco de dados (incompleto)
+- [x] Banco de dados
 - [ ] Informar status aos clientes
 - [ ] Controle de velocidade do tratador
 
@@ -31,7 +31,7 @@ E execute:
     # systemctl enable crossbar
     # systemctl enable peixoto
 
-A saída do programa será salva no arquivo ``/home/badaro/log/peixoto.log``
+A saída do programa será salva no arquivo ``/home/badaro/dados/peixoto.log``
 
 ### Desatualizado
 
