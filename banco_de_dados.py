@@ -62,18 +62,48 @@ def salva_agenda(agenda):
     # percorre os atuadores da agenda
     session = Session()
     for atuador in agenda:
+         # limpa dados antigos
+        if atuador == 'tratador':
+            session.query(Tratador).delete()
+        elif atuador == 'aerador':
+            session.query(Aerador).delete()
+        else:
+            raise ValueError("atuador {} não está configurado no banco de dados".format(atuador))
+            session.flush()
+            session.close()
+
         for alarme in agenda[atuador]:
             if atuador == 'tratador':
                 entrada = Tratador(inicio=alarme[0], quantidade=alarme[1])
             elif atuador == 'aerador':
                 entrada = Aerador(inicio=alarme[0], fim=alarme[1])
-            else:
-                raise ValueError("atuador {} não está configurado no banco de dados".format(atuador))
+
             session.add(entrada)
 
     session.commit()
     session.flush()
     session.close()
+
+# recupera a agenda como um dicionário
+def recupera_agenda():
+    session = Session()
+    agenda = {}
+
+    tratador = agenda['tratador'] = []
+    rows = session.query(Tratador).all()
+    for item in rows:
+        tratador.append([item.inicio, item.quantidade])
+
+    aerador = agenda['aerador'] = []
+    rows = session.query(Aerador).all()
+    for item in rows:
+        aerador.append([item.inicio, item.fim])
+
+    session.flush()
+    session.close()
+
+    return agenda
+
 
 url = 'sqlite:///dados/arquivo.db'
 

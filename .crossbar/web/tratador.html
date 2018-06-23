@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 
-<html>
+<body>
 <meta charset="utf-8"></meta>
 
 <div class="title-row">
@@ -8,8 +8,8 @@
 </div>
 
 <div class='button-row'>
-  <button class="add_button" onclick='addElement()'>Adcionar</button>
-  <button class="add_button">Restaurar</button>
+  <button class="add_button" onclick="addElement()">Adcionar</button>
+  <button class="add_button" onclick="attElements()">Restaurar</button>
   <button class="add_button" onclick='removeAll()'>Limpar</button>
 </div>
 
@@ -27,6 +27,16 @@
   function increment(){
   i += 1; /* Function for automatic increment of field's "Name" attribute. */
   }
+
+  // mascara dos campos de tempo
+  var timeMask = {translation: {
+                                H: {pattern: /[0-2]/, optional: true},
+                                h: {pattern: /[0-9]/},
+                                M: {pattern: /[0-5]/},
+                                m: {pattern: /[0-9]/}
+                                    },
+                      placeholder: '__:__'
+  };
   /*
   Tirado do site: https://www.formget.com/how-to-dynamically-add-and-remove-form-fields-using-javascript/
   ---------------------------------------------
@@ -48,33 +58,32 @@
       return false;
     }
   }
-
   /*
   ----------------------------------------------------------------------------
   Functions that will be called upon, when user click on the Name text field.
   ----------------------------------------------------------------------------
   */
-  function addElement(){
+  function addElement(h=null, q=null){
     var div = document.createElement('div');
     div.setAttribute("id", "id_" + i);
     div.classList.add("line-row", "input_field");
 
     var hour = document.createElement("input");
     hour.setAttribute("type", "text");
-    hour.setAttribute("name", "hora_" + i);
+    hour.setAttribute("name", "list" + i + "_hora");
     hour.classList.add('input_list');
     $(hour).mask("Hh:Mm", timeMask);
+    if (h) hour.value = h;
 
-
-
-    var racao = document.createElement("input");
-    racao.setAttribute("type", "text");
-    racao.setAttribute("min", "0")
-    racao.setAttribute("name", "racao_" + i);
-    racao.setAttribute('placeholder', 'kg');
-    racao.classList.add('input_list');
-    $(racao).mask("0#")
-
+    var quantidade = document.createElement("input");
+    quantidade.setAttribute("type", "text");
+    quantidade.setAttribute("min", "0")
+    quantidade.setAttribute("name","list" + i + "_quantidade");
+    quantidade.setAttribute("placeholder", "kg");
+    quantidade.classList.add('input_list');
+    //$(quantidade).mask('#00,0', {reverse: true});
+    $(quantidade).mask("0#");
+    if (q) quantidade.value =q;
 
     var close = document.createElement("img");
     close.setAttribute("onclick",
@@ -84,7 +93,7 @@
     increment();
 
     div.appendChild(hour);
-    div.appendChild(racao);
+    div.appendChild(quantidade);
     div.appendChild(close);
 
     document.getElementById("tratador-agenda").appendChild(div);
@@ -99,5 +108,32 @@
     i = 0;
   }
 
+  function removeAll(){
+    $('.input_field').remove();
+    i = 0;
+  }
+
+  function attElements(){
+    get_status().then(
+
+      function (msg) {
+        msg = JSON.parse(msg);
+        //console.log(msg);
+        var elementos = msg['tratador'];
+
+        if (elementos) {
+          removeAll();
+          for (var el in elementos) {
+            addElement(elementos[el][0], elementos[el][1]);
+          }
+        }
+      }, function (erro) {
+        console.log(erro);
+      }
+    );
+  }
+  // Atualiza os campos depois de carregar a página
+  attElements();
+
 </script>
-</html>
+</body>

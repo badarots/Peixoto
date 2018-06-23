@@ -72,7 +72,7 @@ class Controlraspi(object):
     """
 
     def __init__(self, wamp_comp, teste=False):
-        self.agenda = {}
+        self.agenda = db.recupera_agenda()
 
         # wamp config
         self.wamp_session = None  # "None" while we're disconnected from WAMP router
@@ -121,12 +121,15 @@ class Controlraspi(object):
 
         self.wamp_session = None
 
+    # procedimento que envia agenda atual para quem requisitou
     def update_status(self):
-        msg = 'Tá faltando isso aqui'
+        msg = self.dumpMsg(self.agenda)
+
         if self.wamp_session is None:
-            return "No WAMP session"
-        self.wamp_session.publish(u"com.myapp.status", msg)
-        return "Published to 'com.myapp.status'" + msg
+            db.log('conexao', 'envia status', msg='desconectado', nivel='erro')
+        # self.wamp_session.publish(u"com.myapp.status", msg)
+        db.log('conexao', 'envia status', msg='status enviado')
+        return msg
 
     # Recebe dados, valida e os executa
     def atualizar(self, payload):
@@ -163,52 +166,41 @@ class Controlraspi(object):
 
         return resposta
 
-    # função que processa lista de agendamento
     def loadMsg(self, message):
         # Tenta converter a mensagem em um dict
         kw = json.loads(message)
         schedule = {}
 
-        # recebe um json string, valida os dados e converte o string em int
-        # datetimes
-        def parseList(kw, valid_opions):
+        # recebe um json string, valida os dados e converte o string em float e
+        # datetime.time
+        # formato esperado kw = {'atuador1': [[param1, param2], ...], ...}
+        def parseList(kw, valid_options):
             sched = []
-            visited = []
 
-            for k in kw:
+            for value in kw.values():
+                if len(value) != len(valid_options):
+                    raise ValueError('há campos não preenchidos')
 
-                # encontra os pares de info da lista de agendamento
-                if k not in visited:
-                    try:
-                        key = k.split('_')
-                        find = (valid_options.index(key[0]) + 1) % 2
-                        opt = valid_opions[find] + '_' + key[1]
-
-                        sched.append([kw[valid_options[0] + '_' + key[1]], kw[valid_options[1] + '_' + key[1]]])
-                        visited.append(opt)
-                    except Exception:
-                        raise ValueError('há campos não preenchidos')
-
-            # valida e converte as informações contidas nos pares
-            for a in sched:
-                for i in range(len(a)):
-                    if valid_opions[i] == 'racao':
-                        if a[i].isdigit():
-                            a[i] = int(a[i])
-                        else:
-                            raise ValueError("quantidade de ração inválida:", a[i])
-
-                    elif valid_options[i] in ['hora', 'inicio', 'fim']:
+                alarme = []
+                for i in range(len(value)):
+                    if valid_options[i] == 'tempo':
                         formato = '%H'
-                        if ':' in a[i]:
+                        if ':' in value[i]:
                             formato = '%H:%M'
-
                         try:
-                            t = dt.datetime.strptime(a[i], formato).time()
-                            a[i] = t
+                            t = dt.datetime.strptime(value[i], formato).time()
+                            alarme.append(t)
                         except Exception:
-                            raise ValueError("formato de hora inválido:", a[i])
+                            raise ValueError("formato inválido para hora:", value[i])
 
+                    elif valid_options[i] == 'float':
+                        try:
+                            x = float(value[i].replace(',', '.'))
+                            alarme.append(x)
+                        except Exception:
+                            raise ValueError("formato inválido para número:", value[i])
+
+                sched.append(alarme)
             return sched
 
         # verifica se o tipo de msg enviada é suportada
@@ -218,21 +210,40 @@ class Controlraspi(object):
             if k not in valid_msg:
                 raise ValueError("mensagens do tipo '{}' não são suportadas".format(k))
 
-            # procura pelas informações contidadas em casa tipo de msg
+            # procura pelas informações contidadas em cada tipo de msg
             # e define o formato da lista final de agendamentos usando
             # o formato de valid_options
             elif k == 'aerador':
-                valid_options = ['inicio', 'fim']
+                valid_options = ['tempo', 'tempo']
                 schedule['aerador'] = parseList(kw[k], valid_options)
 
             elif k == 'tratador':
-                valid_options = ['hora', 'racao']
+                valid_options = ['tempo', 'float']
                 schedule['tratador'] = parseList(kw[k], valid_options)
 
             elif k == 'leds':
                 schedule['leds'] = None
 
         return schedule
+
+    def dumpMsg(self, entrada):
+        # formato de entrada {'atuador': [[param1, param2], ...], ...}
+        # formato de saida {'atuador': {'0': [param1, param2], ...}, ...}
+        saida = {}
+        for atuador in entrada:
+            agenda = entrada[atuador]
+            atuador_saida = {}
+            for i in range(len(agenda)):
+                evento = agenda[i]
+                a = atuador_saida[str(i)] = []
+                for v in evento:
+                    if type(v) == float:
+                        a.append(str(v))
+                    elif type(v) == dt.time:
+                        a.append(v.strftime('%H:%M'))
+
+            saida[atuador] = atuador_saida
+        return json.dumps(saida)
 
     # agenda do Aerador tem o formato: [[inicio (datetime), fim (dt)], ...]
     def attAerador(self, agenda):
@@ -300,4 +311,4 @@ class Controlraspi(object):
         pass
 
     def geraCronTrigger(self, time):
-        return CronTrigger(hour=time.hour, minute=time.minute)
+        return CronTrigger(hour=time.hour, minute=time.minute, second=time.second)

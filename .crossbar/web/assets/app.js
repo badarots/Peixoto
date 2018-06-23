@@ -59,22 +59,11 @@ var ola = function ola(event) {
   console.log('Click');
 };
 
-// mascara dos campos de tempo
-var timeMask = {translation: {
-                              H: {pattern: /[0-2]/, optional: true},
-                              h: {pattern: /[0-9]/},
-                              M: {pattern: /[0-5]/},
-                              m: {pattern: /[0-9]/}
-                                  },
-                    placeholder: '__:__'
-};
-
 /*
  * Usa jquery para carregar dinamicamente diferentes formulários
 */
-
-
 $(document).ready(function(){
+    connect();
     // Define forumario aerador como inicial
     setPage('tratador')
 
@@ -86,7 +75,7 @@ $(document).ready(function(){
     function setPage(page){
         $("#content").load(page + ".html");
 
-        // muda a o cor dos botoes para sinaliar qual form. está aberto
+        // muda a o cor dos botoes para sinalizar qual form. está aberto
         $(".links").removeClass("active");
         $('#' + page).addClass("active")
      };

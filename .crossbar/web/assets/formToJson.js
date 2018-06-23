@@ -41,6 +41,15 @@ var isMultiSelect = function isMultiSelect(element) {
 };
 
 /**
+ * Checa se o value do input deve ser adcionado a uma lista.
+ * @param  {Element} element  the element to check
+ * @return {Boolean}          true if the element is contains 'list' in the name
+ */
+var isList = function isList(element) {
+  return /list/.test(element.name)
+};
+
+/**
  * Retrieves the selected options from a multi-select as an array.
  * @param  {HTMLOptionsCollection} options  the options for the select
  * @return {Array}                          an array of selected option values
@@ -106,6 +115,9 @@ var formToJSON = function formToJSON(elements) {
         data[element.name] = (data[element.name] || []).concat(element.value);
       } else if (isMultiSelect(element)) {
         data[element.name] = getSelectValues(element);
+      } else if (isList(element)) {
+        key = /\d+/.exec(element.name);
+        data[key] = (data[key] || []).concat(element.value);
       } else {
         data[element.name] = element.value;
       }

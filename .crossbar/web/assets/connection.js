@@ -1,7 +1,7 @@
 var connection = null;
 var ellog = null;
 
-window.onload = function() {
+function connect() {
     var wsuri = null;
 
     ellog = document.getElementById('log');
@@ -70,7 +70,15 @@ function send(msg) {
     }
 };
 
+function get_status() {
+    if (connection.session != null){
+        return(connection.session.call('com.exec.status', [], ));
+    } else {
+        log('Não conectado');
+    }
+};
+
 function log(m) {
-    ellog.innerHTML += m + '\n';
-    ellog.scrollTop = ellog.scrollHeight;
+    ellog.innerHTML = m + '\n' + ellog.innerHTML;
+    ellog.scrollTop = 0;
 };

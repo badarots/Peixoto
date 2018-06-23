@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 
-<html>
+<body>
 <meta charset="utf-8"></meta>
 
 <div class="title-row">
@@ -9,7 +9,7 @@
 
 <div class='button-row'>
   <button class="add_button" onclick='addElement()'>Adcionar</button>
-  <button class="add_button">Restaurar</button>
+  <button class="add_button" onclick="attElements()">Restaurar</button>
   <button class="add_button" onclick='removeAll()'>Limpar</button>
 </div>
 
@@ -27,6 +27,19 @@
   function increment(){
   i += 1; /* Function for automatic increment of field's "Name" attribute. */
   }
+
+  // mascara dos campos de tempo
+  var timeMask = {translation: {
+                                H: {pattern: /[0-2]/, optional: true},
+                                h: {pattern: /[0-9]/},
+                                M: {pattern: /[0-5]/},
+                                m: {pattern: /[0-9]/}
+                                    },
+                      placeholder: '__:__'
+  };
+
+
+
   /*
   Tirado do site: https://www.formget.com/how-to-dynamically-add-and-remove-form-fields-using-javascript/
   ---------------------------------------------
@@ -53,26 +66,24 @@
   Functions that will be called upon, when user click on the Name text field.
   ----------------------------------------------------------------------------
   */
-  function addElement(){
+  function addElement(val1=null, val2=null){
     var div = document.createElement('div');
     div.setAttribute("id", "id_" + i);
     div.classList.add('line-row', 'input_field');
 
     var inicio = document.createElement("input");
     inicio.setAttribute("type", "text");
-    inicio.setAttribute("name", "inicio_" + i);
-    inicio.setAttribute('placeholder', '--:--');
+    inicio.setAttribute("name", "list" + i +  "_inicio");
     inicio.classList.add('input_list');
     $(inicio).mask("Hh:Mm", timeMask);
-
+    if (val1) inicio.value = val1;
 
     var fim = document.createElement("input");
     fim.setAttribute("type", "text");
-    fim.setAttribute("name", "fim_" + i);
-    fim.setAttribute('placeholder', '--:--');
+    fim.setAttribute("name","list" + i + "_fim");
     fim.classList.add('input_list');
     $(fim).mask("Hh:Mm", timeMask);
-
+    if (val2) fim.value = val2;
 
     var close = document.createElement("img");
     close.setAttribute("onclick",
@@ -96,5 +107,30 @@
     $('.input_field').remove();
     i = 0;
   }
+
+  function attElements(){
+    get_status().then(
+
+      function (msg) {
+        msg = JSON.parse(msg);
+        //console.log(msg);
+        var elementos = msg['aerador'];
+
+        if (elementos) {
+          removeAll();
+          for (var el in elementos) {
+            addElement(elementos[el][0], elementos[el][1]);
+          }
+        }
+      }, function (erro) {
+        console.log(erro);
+      }
+    );
+  }
+
+  // Atualiza os campos depois de carregar a página
+  attElements();
+
 </script>
-</html>
+
+</body>
