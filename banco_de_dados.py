@@ -106,7 +106,7 @@ def recupera_agenda():
     return agenda
 
 
-url = 'sqlite:///dados/arquivo.db'
+url = 'sqlite:///{}/arquivo.db'.format(path)
 
 engine = create_engine(url, poolclass=NullPool)
 
