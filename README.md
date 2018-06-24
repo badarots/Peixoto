@@ -19,7 +19,7 @@ Site
 - [x] Formulários
 - [x] Formulário de autenticação
 - [ ] Otimização para celular
-- [ ] Painel para ligar e desligar atuadores
+- [ ] Panel para ligar e desligar atuadores
 - [ ] Painel de informações
 
 ## Inicialização atomática
