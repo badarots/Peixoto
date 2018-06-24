@@ -1,22 +1,21 @@
 <!DOCTYPE html>
 
 <body>
-<meta charset="utf-8"></meta>
 
 <div class="title-row">
-  <h1>Aerador</h1>
+  <h1>Tratador</h1>
 </div>
 
 <div class='button-row'>
-  <button class="add_button" onclick='addElement()'>Adcionar</button>
+  <button class="add_button" onclick="addElement()">Adcionar</button>
   <button class="add_button" onclick="attElements()">Restaurar</button>
   <button class="add_button" onclick='removeAll()'>Limpar</button>
 </div>
 
-<form class='form-basic' name='aerador' id='tratador-agenda'>
+<form class='form-basic' name='tratador' id='tratador-agenda'>
   <div class='line-row'>
-    <span>Início</span>
-    <span>Fim</span>
+    <span>Horário</span>
+    <span>Ração (kg)</span>
   </div>
 
 </form>
@@ -37,9 +36,6 @@
                                     },
                       placeholder: '__:__'
   };
-
-
-
   /*
   Tirado do site: https://www.formget.com/how-to-dynamically-add-and-remove-form-fields-using-javascript/
   ---------------------------------------------
@@ -66,24 +62,27 @@
   Functions that will be called upon, when user click on the Name text field.
   ----------------------------------------------------------------------------
   */
-  function addElement(val1=null, val2=null){
+  function addElement(h=null, q=null){
     var div = document.createElement('div');
     div.setAttribute("id", "id_" + i);
-    div.classList.add('line-row', 'input_field');
+    div.classList.add("line-row", "input_field");
 
-    var inicio = document.createElement("input");
-    inicio.setAttribute("type", "text");
-    inicio.setAttribute("name", "list" + i +  "_inicio");
-    inicio.classList.add('input_list');
-    $(inicio).mask("Hh:Mm", timeMask);
-    if (val1) inicio.value = val1;
+    var hour = document.createElement("input");
+    hour.setAttribute("type", "text");
+    hour.setAttribute("name", "list" + i + "_hora");
+    hour.classList.add('input_list');
+    $(hour).mask("Hh:Mm", timeMask);
+    if (h) hour.value = h;
 
-    var fim = document.createElement("input");
-    fim.setAttribute("type", "text");
-    fim.setAttribute("name","list" + i + "_fim");
-    fim.classList.add('input_list');
-    $(fim).mask("Hh:Mm", timeMask);
-    if (val2) fim.value = val2;
+    var quantidade = document.createElement("input");
+    quantidade.setAttribute("type", "text");
+    quantidade.setAttribute("min", "0")
+    quantidade.setAttribute("name","list" + i + "_quantidade");
+    quantidade.setAttribute("placeholder", "kg");
+    quantidade.classList.add('input_list');
+    //$(quantidade).mask('#00,0', {reverse: true});
+    $(quantidade).mask("0#");
+    if (q) quantidade.value =q;
 
     var close = document.createElement("img");
     close.setAttribute("onclick",
@@ -92,8 +91,8 @@
 
     increment();
 
-    div.appendChild(inicio);
-    div.appendChild(fim);
+    div.appendChild(hour);
+    div.appendChild(quantidade);
     div.appendChild(close);
 
     document.getElementById("tratador-agenda").appendChild(div);
@@ -108,13 +107,18 @@
     i = 0;
   }
 
+  function removeAll(){
+    $('.input_field').remove();
+    i = 0;
+  }
+
   function attElements(){
     get_status().then(
 
       function (msg) {
         msg = JSON.parse(msg);
         //console.log(msg);
-        var elementos = msg['aerador'];
+        var elementos = msg['tratador'];
 
         if (elementos) {
           removeAll();
@@ -127,10 +131,8 @@
       }
     );
   }
-
   // Atualiza os campos depois de carregar a página
   attElements();
 
 </script>
-
 </body>

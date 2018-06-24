@@ -1,20 +1,20 @@
 {
+    "pid": 16688, 
     "argv": [
         "crossbar", 
         "start"
     ], 
     "options": {
-        "color": "auto", 
         "config": "config.json", 
-        "logdir": null, 
-        "command": "start", 
-        "debug_lifecycle": false, 
+        "logformat": "standard", 
         "cbdir": "/home/badaro/Projetos/Peixoto/.crossbar", 
+        "debug_lifecycle": false, 
         "loglevel": "info", 
-        "shutdownafter": null, 
-        "debug_programflow": false, 
         "logtofile": false, 
-        "logformat": "standard"
-    }, 
-    "pid": 13222
+        "shutdownafter": null, 
+        "color": "auto", 
+        "command": "start", 
+        "debug_programflow": false, 
+        "logdir": null
+    }
 }

@@ -1,9 +1,8 @@
 var connection = null;
 var ellog = null;
+var wsuri = null;
 
-function connect() {
-    var wsuri = null;
-
+window.onload = function(){
     ellog = document.getElementById('log');
 
     var protocol = window.location.protocol;
@@ -23,12 +22,13 @@ function connect() {
         }
         wsuri += window.location.pathname + "ws";
     }
-
+    //wsuri = 'ws://localhost:8010/ws'
     log("Protocol: " + window.location.protocol + " URL: " + wsuri);
+};
 
-    var user_id = "badaro";
-    var user_secret = "1234";
-
+function connect(user_id, user_secret) {
+    //user_id = 'badaro';
+    //user_secret = '1234';
 
     connection = new autobahn.Connection({
         url: wsuri,
@@ -37,20 +37,18 @@ function connect() {
         authmethods: ["wampcra"],
         authid: user_id,
         onchallenge: onchallenge
-
     });
 
     function onchallenge (session, method, extra) {
-        console.log("onchallenge", method, extra);
+        //console.log("onchallenge", method, extra);
         if (method === "wampcra") {
-            console.log("authenticating via '" + method + "' and challenge '" + extra.challenge + "'");
+            //console.log("authenticating via '" + method + "' and challenge '" + extra.challenge + "'");
 
             return autobahn.auth_cra.sign(user_secret, extra.challenge);
         } else {
             throw "don't know how to authenticate using '" + method + "'";
         }
     }
-
 
     //inscrição no topico status para saber como anda os paranauês
     connection.onopen = function(session, details) {
@@ -67,14 +65,19 @@ function connect() {
                 log('Falha ao se inscrever no tópico status', err);
             }
         );
+        $("#content").load('formularios.html');
+        $("#status_conexao").html("Conectado");
     };
 
     connection.onclose = function(reason, details) {
-        log("Desconectado: ", reason, details)
+        log("Desconectado ", reason, details)
+        $("#content").load('login.html');
+        $("#status_conexao").html("Desconectado");
     };
 
     log('Conectando...')
     connection.open();
+
  };
 
 function send(msg) {
@@ -88,6 +91,10 @@ function send(msg) {
         log('Não conectado');
     }
 };
+
+function close_conection(){
+    if (connection) connection.close();
+}
 
 function get_status() {
     if (connection.session != null){

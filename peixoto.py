@@ -15,8 +15,9 @@ def main(reactor, teste):
     component = Component(
         transports=[
             {
-                #u"url": u"ws://hackerspace.if.usp.br/crossbar/ws",
-                u"url": u"ws://localhost:8010/ws",
+                #u"url": u"ws://localhost:8010/ws",
+                u"url": u"ws://hackerspace.if.usp.br/crossbar/ws",
+
                 # you can set various websocket options here if you want
                 u"max_retries": -1,
                 u"initial_retry_delay": 5,
