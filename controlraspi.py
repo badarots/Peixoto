@@ -145,17 +145,17 @@ class Controlraspi(object):
             resposta += 'Atualizado: '
             if 'leds' in nova_agenda:
                 resposta += 'Leds '
-                db.log('leds', 'atualizado', msg=str(nova_agenda['leds']))
+                db.log('leds', 'atualizado', msg=self.stringfyAgenda(nova_agenda['leds']))
                 self.attLeds(nova_agenda['leds'])
 
             if 'tratador' in nova_agenda:
                 resposta += 'Tratador '
-                db.log('tratador', 'atualizado', msg=str(nova_agenda['tratador']))
+                db.log('tratador', 'atualizado', msg=self.stringfyAgenda(nova_agenda['tratador']))
                 self.attTratador(nova_agenda['tratador'])
 
             if 'aerador' in nova_agenda:
                 resposta += 'Aeradores'
-                db.log('aerador', 'atualizado', msg=str(nova_agenda['aerador']))
+                db.log('aerador', 'atualizado', msg=self.stringfyAgenda(nova_agenda['aerador']))
                 self.attAerador(nova_agenda['aerador'])
 
             # atualiza agenda na memória e no banco de dados
@@ -244,6 +244,24 @@ class Controlraspi(object):
 
             saida[atuador] = atuador_saida
         return json.dumps(saida)
+
+    def stringfyAgenda(self, agenda):
+        #formato de entrada list = [[param1, param2], ...]
+        #formato de saída str = param1, param2/ ...
+        saida = ""
+        for evento in agenda:
+            for i in range(len(evento)):
+                item = evento[i]
+                if type(item) == dt.time:
+                    saida += item.strftime('%H:%M')
+                else:
+                    saida += str(item)
+
+                if i < len(evento) -1:
+                    saida += ', '
+            saida += '/ '
+        saida = saida[:-2]
+        return saida
 
     # agenda do Aerador tem o formato: [[inicio (datetime), fim (dt)], ...]
     def attAerador(self, agenda):
