@@ -12,7 +12,7 @@ App
 - [x] Inicialização com systemd
 - [x] Log
 - [x] Banco de dados
-- [ ] Informar status aos clientes
+- [x] Informar status aos clientes
 - [ ] Controle de velocidade do tratador
 
 Site

@@ -22,9 +22,44 @@
                                     }
                                 }
                             ]
+                        },
+                        {
+                            "name": "raspi",
+                            "permissions": [
+                                {
+                                    "uri": "com.",
+                                    "match": "prefix",
+                                    "allow": {
+                                        "call": true,
+                                        "register": true,
+                                        "publish": true,
+                                        "subscribe": true
+                                    }
+                                }
+                            ]
+                        },
+                        {
+                            "name": "client",
+                            "permissions": [
+                                {
+                                    "uri": "com.",
+                                    "match": "prefix",
+                                    "allow": {
+                                        "call": true,
+                                        "register": false,
+                                        "publish": true,
+                                        "subscribe": true
+                                    },
+                                    "disclose": {
+                                        "caller": true,
+                                        "publisher": true
+                                    }
+                                }
+                            ]
                         }
                     ]
                 }
+
             ],
             "transports": [
                 {
@@ -42,6 +77,21 @@
                             "type": "websocket",
                             "options": {
                                 "auto_ping_interval": 50000
+                            },
+                            "auth":{
+                                "wampcra": {
+                                    "type": "static",
+                                    "users": {
+                                        "badaro": {
+                                            "secret": "1234",
+                                            "role": "client"
+                                        },
+                                        "raspi": {
+                                            "secret": "1234",
+                                            "role": "raspi"
+                                        }
+                                    }
+                                }
                             }
                         }
                     }

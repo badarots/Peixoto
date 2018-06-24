@@ -26,11 +26,30 @@ function connect() {
 
     log("Protocol: " + window.location.protocol + " URL: " + wsuri);
 
+    var user_id = "badaro";
+    var user_secret = "1234";
+
 
     connection = new autobahn.Connection({
         url: wsuri,
-        realm: "realm1"
+        realm: "realm1",
+
+        authmethods: ["wampcra"],
+        authid: user_id,
+        onchallenge: onchallenge
+
     });
+
+    function onchallenge (session, method, extra) {
+        console.log("onchallenge", method, extra);
+        if (method === "wampcra") {
+            console.log("authenticating via '" + method + "' and challenge '" + extra.challenge + "'");
+
+            return autobahn.auth_cra.sign(user_secret, extra.challenge);
+        } else {
+            throw "don't know how to authenticate using '" + method + "'";
+        }
+    }
 
 
     //inscrição no topico status para saber como anda os paranauês
