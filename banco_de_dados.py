@@ -10,8 +10,9 @@ from sqlalchemy.orm import sessionmaker, scoped_session
 
 
 # cria pasta 'dados' se ela ainda não existe
-if not os.path.isdir('dados'):
-    os.mkdir('dados')
+path = '/home/badaro/Peixoto/dados'
+if not os.path.isdir(path):
+    os.mkdir(path)
 
 Base = declarative_base()
 
