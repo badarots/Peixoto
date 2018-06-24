@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+
+<body>
+<meta charset="utf-8"></meta>
+
+<div class="title-row">
+  <h1>Login</h1>
+</div>
+
+<form class='form-basic' id='tratador-agenda'>
+  <div class='line-row'>
+    <input type="text" id="usuario" placeholder="Usuário"></input>
+  </div>
+
+  <div class='line-row'>
+    <input type="password" id="senha" placeholder="Senha"></input>
+  </div>
+
+</form>
+
+<button class="submit_button" id="conectar">Conectar</button>
+
+<script type="text/javascript">
+  $(document).ready(function(
+                             ){
+
+    var conectar = function conectar(event){
+        event.preventDefault();
+
+        var user_id = $("#usuario").val();
+        var user_secret = $("#senha").val();
+
+        connect(user_id, user_secret);
+    }
+      // conectar-se usando credenciais
+      $("#conectar").on('click', conectar);
+    });
+</script>
+</body>

@@ -9,7 +9,7 @@ StandardInput=null
 #StandardOutput=syslog
 #StandardError=syslog
 #SyslogIdentifier=peixoto_log
-ExecStart=/bin/sh -c '/usr/bin/python -u /home/badaro/Peixoto/peixoto.py raspi 2>&1 >> /home/badaro/dados/peixoto.log'
+ExecStart=/usr/bin/python -u /home/badaro/Peixoto/peixoto.py raspi
 Restart=always
 
 [Install]

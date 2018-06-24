@@ -9,21 +9,6 @@
                     "name": "realm1",
                     "roles": [
                         {
-                            "name": "anonymous",
-                            "permissions": [
-                                {
-                                    "uri": "com.",
-                                    "match": "prefix",
-                                    "allow": {
-                                        "call": true,
-                                        "register": true,
-                                        "publish": true,
-                                        "subscribe": true
-                                    }
-                                }
-                            ]
-                        },
-                        {
                             "name": "raspi",
                             "permissions": [
                                 {
@@ -71,7 +56,7 @@
                     "paths": {
                         "/": {
                             "type": "static",
-                            "directory": "web"
+                            "directory": "../web"
                         },
                         "ws": {
                             "type": "websocket",

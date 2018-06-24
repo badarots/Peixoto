@@ -4,8 +4,8 @@ WAMP
 - [x] Estabelecer comunicação
 - [x] Definir rota de conexão
 - [x] Processamento de mensagens
-- [ ] Autenticação
-- [ ] Criptografia
+- [x] Autenticação
+- [ ] Criptografia (opcional?)
 
 App
 - [x] Agendamento
@@ -17,8 +17,9 @@ App
 
 Site
 - [x] Formulários
-- [ ] Formulário de autenticação
+- [x] Formulário de autenticação
 - [ ] Otimização para celular
+- [ ] Painel para ligar e desligar atuadores
 - [ ] Painel de informações
 
 ## Inicialização atomática

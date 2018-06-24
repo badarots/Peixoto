@@ -1,5 +1,6 @@
 # Crossbar
-.crossbar/key*
+.crossbar/*
+!.crossbar/config.json
 
 # Pipenv
 Pipfile*
@@ -13,3 +14,5 @@ dados/
 __pycache__/
 *.py[cod]
 *$py.class
+python*/
+Python*/
