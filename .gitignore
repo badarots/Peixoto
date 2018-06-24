@@ -9,6 +9,7 @@ downloads/
 # log, banco de dados e arquivos gerados
 log/
 dados/
+teste/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

@@ -7,9 +7,12 @@
 </div>
 
 <div class='button-row'>
-  <button class="add_button" onclick='addElement()'>Adcionar</button>
   <button class="add_button" onclick="attElements()">Restaurar</button>
   <button class="add_button" onclick='removeAll()'>Limpar</button>
+</div>
+
+<div class='button-row'>
+  <button class="add_button" onclick='addElement()'>Adcionar</button>
 </div>
 
 <form class='form-basic' name='aerador' id='tratador-agenda'>
@@ -29,12 +32,12 @@
 
   // mascara dos campos de tempo
   var timeMask = {translation: {
-                                H: {pattern: /[0-2]/, optional: true},
-                                h: {pattern: /[0-9]/},
-                                M: {pattern: /[0-5]/},
-                                m: {pattern: /[0-9]/}
-                                    },
-                      placeholder: '__:__'
+                    H: {pattern: /[0-2]/, optional: true},
+                    h: {pattern: /[0-9]/},
+                    M: {pattern: /[0-5]/},
+                    m: {pattern: /[0-9]/}
+                    },
+                  placeholder: '__:__'
   };
 
 
