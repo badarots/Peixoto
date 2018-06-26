@@ -27,8 +27,8 @@ window.onload = function(){
 };
 
 function connect(user_id, user_secret) {
-    //user_id = 'badaro';
-    //user_secret = '1234';
+    user_id = 'badaro';
+    user_secret = '1234';
 
     connection = new autobahn.Connection({
         url: wsuri,
@@ -65,7 +65,7 @@ function connect(user_id, user_secret) {
                 log('Falha ao se inscrever no tópico status', err);
             }
         );
-        $("#content").load('formularios.html');
+        $("#content").load('agenda.html');
         $("#status_conexao").html("Conectado");
     };
 
