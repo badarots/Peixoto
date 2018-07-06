@@ -3,7 +3,7 @@
   (general
     (links 4)
     (no_connects 0)
-    (area 0 0 0 0)
+    (area 127.039999 98.085 190.460001 135.695)
     (thickness 1.6)
     (drawings 4)
     (tracks 12)
@@ -88,7 +88,7 @@
       (mirror false)
       (drillshape 1)
       (scaleselection 1)
-      (outputdirectory ""))
+      (outputdirectory rj11))
   )
 
   (net 0 "")

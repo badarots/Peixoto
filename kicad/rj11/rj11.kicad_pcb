@@ -37,7 +37,7 @@
   )
 
   (setup
-    (last_trace_width 0.75)
+    (last_trace_width 0.25)
     (user_trace_width 0.75)
     (trace_clearance 0.2)
     (zone_clearance 0.508)
@@ -88,7 +88,7 @@
       (mirror false)
       (drillshape 1)
       (scaleselection 1)
-      (outputdirectory rj11))
+      (outputdirectory /home/badaro/Projetos/Peixoto/kicad/rj11/))
   )
 
   (net 0 "")
