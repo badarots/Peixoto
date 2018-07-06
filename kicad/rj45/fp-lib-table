@@ -1,0 +1,4 @@
+(fp_lib_table
+  (lib (name RJ11)(type KiCad)(uri /home/badaro/Projetos/Peixoto/hardware/RJ11.pretty)(options "")(descr ""))
+  (lib (name RJ45)(type KiCad)(uri /home/badaro/Projetos/Peixoto/hardware/RJ45.pretty)(options "")(descr ""))
+)
