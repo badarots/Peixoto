@@ -16,7 +16,7 @@ def main(reactor, teste):
         transports=[
             {
                 #u"url": u"ws://localhost:8010/ws",
-                u"url": u"ws://hackerspace.if.usp.br/crossbar/ws",
+                u"url": u"ws://localhost/ws",
 
                 # you can set various websocket options here if you want
                 u"max_retries": -1,
@@ -68,7 +68,7 @@ if __name__ == '__main__':
     except Exception:
         arg = None
 
-    teste = (arg != 'raspi')
+    teste = (arg == 'teste')
 
 
     try:

@@ -8,7 +8,7 @@ User=pi
 StandardInput=null
 StandardOutput=journal
 StandardError=journal
-ExecStart=/home/pi/python3.6/bin/python -u /home/pi/Peixoto/peixoto.py raspi
+ExecStart=/home/pi/python3.6/bin/python -u /home/pi/Peixoto/peixoto.py
 Restart=always
 
 [Install]
