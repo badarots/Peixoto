@@ -8,7 +8,7 @@ User=root
 StandardInput=null
 StandardOutput=journal
 StandardError=journal
-ExecStart=/home/badaro/pypy3-v6.0.0-linux64/bin/crossbar start --cbdir /home/badaro/Peixoto/.crossbar/
+ExecStart=/home/pi/python3.6/bin/crossbar start --cbdir /home/pi/Peixoto/.crossbar/
 Restart=on-abort
 
 [Install]
