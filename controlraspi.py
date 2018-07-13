@@ -12,7 +12,7 @@ from apscheduler.triggers.cron import CronTrigger
 import banco_de_dados as db
 
 
-pins = {"tratador": 2, "aerador": 3}
+pins = {"tratador": 23, "aerador": 24}
 gpio = None
 
 # criação do scheduler

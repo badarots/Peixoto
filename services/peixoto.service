@@ -4,12 +4,11 @@ After=syslog.target network.target
 
 [Service]
 Type=simple
-User=badaro
+User=pi
 StandardInput=null
-#StandardOutput=syslog
-#StandardError=syslog
-#SyslogIdentifier=peixoto_log
-ExecStart=/usr/bin/python -u /home/badaro/Peixoto/peixoto.py raspi
+StandardOutput=journal
+StandardError=journal
+ExecStart=/home/pi/python3.6/bin/python -u /home/pi/Peixoto/peixoto.py
 Restart=always
 
 [Install]
