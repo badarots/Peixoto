@@ -51,7 +51,7 @@
       var interruptor = document.getElementById(id).getElementsByTagName('input')[0];
       var data = {};
       data[id] = interruptor.checked;
-      var msg = JSON.stringify(data, null, "  ");
+      var msg = JSON.stringify(data);
       ativar(msg);
 
       console.log(msg);
