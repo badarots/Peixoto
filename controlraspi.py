@@ -148,20 +148,20 @@ class Controlraspi(object):
             msg = json.loads(payload)
         except Exception as e:
             db.log('mensagem', 'formato nao suportador', msg=str(e), nivel='alerta')
+        else:
+            db.log('mensagem', 'ativação', msg=msg)
 
-        db.log('mensagem', 'ativação', msg=msg)
+            if 'switch_aerador' in msg:
+                if msg['switch_aerador']:
+                    ligar_aerador()
+                else:
+                    desligar_aerador()
 
-        if 'switch_aerador' in msg:
-            if msg['switch_aerador']:
-                ligar_aerador()
-            else:
-                desligar_aerador()
-
-        if 'switch_refletor' in msg:
-            if msg['switch_refletor']:
-                ligar_refletor()
-            else:
-                desligar_refletor()
+            if 'switch_refletor' in msg:
+                if msg['switch_refletor']:
+                    ligar_refletor()
+                else:
+                    desligar_refletor()
 
         # Recebe dados, valida e os executa
     def atualizar(self, payload):

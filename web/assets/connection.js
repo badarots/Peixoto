@@ -10,7 +10,7 @@ window.onload = function(){
     var port = window.location.port;
 
     if (protocol === "file:") {
-        wsuri = "ws://hackerspace.if.usp.br/crossbar/ws";
+        wsuri = "ws:/192.168.1.70/ws";
     } else {
         if (protocol == "https:"){
             wsuri = "wss://" + hostname;

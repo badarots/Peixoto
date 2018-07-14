@@ -49,8 +49,8 @@
 
     function getSwitch(id) {
       var interruptor = document.getElementById(id).getElementsByTagName('input')[0];
-      msg = {id: interruptor.checked};
-      ativar(JSON.stringify(msg, null, "  ");
+      msg = "{" + id + ": interruptor.checked}";
+      ativar(msg);
 
       console.log(id, interruptor.checked);
     }
