@@ -12,7 +12,7 @@ from apscheduler.triggers.cron import CronTrigger
 import banco_de_dados as db
 
 
-pins = {"tratador": 23, "aerador": 24}
+pins = {"tratador": 23, "aerador": 24, "refletor": 25}
 gpio = None
 
 # criação do scheduler
@@ -32,7 +32,7 @@ def configGPIO():
         gpio.setup(pins[pin], gpio.OUT, initial=gpio.HIGH)
 
 
-# excuta ações com os pinos
+# executa ações com os pinos
 
 def digitalWrite(pin, state):
     if gpio:
@@ -58,6 +58,14 @@ def ligar_aerador():
 def desligar_aerador():
     db.log('aerador', 'desligado')
     digitalWrite(pins['aerador'], False)
+
+def ligar_refletor():
+    db.log('refletor', 'ligado')
+    digitalWrite(pins['refletor'], True)
+
+def desligar_refletor():
+    db.log('refletor', 'desligado')
+    digitalWrite(pins['refletor'], False)
 
 def exit(exception):
     # print("Desligamento: limpando pinos")
@@ -108,6 +116,8 @@ class Controlraspi(object):
         try:
             yield session.register(self.atualizar, u'com.exec.atualizar')
             yield session.register(self.update_status, u'com.exec.status')
+            yield session.register(self.ativar, u'com.exec.ativar')
+
             # print("procedimentos registrados")
             db.log('conexao', 'registro', msg='procedimentos registrados')
         except Exception as e:
@@ -131,7 +141,29 @@ class Controlraspi(object):
         db.log('conexao', 'envia status', msg='status enviado')
         return msg
 
-    # Recebe dados, valida e os executa
+    # Liga e desliga os componentes a pedido do cliente
+
+    def ativar(self, payload):
+        try:
+            msg = json.loads(payload)
+        except Exception as e:
+            db.log('mensagem', 'formato nao suportador', str(e), nivel='alerta')
+
+        db.log('mensagem', 'ativação', msg)
+
+        if 'switch_aerador' in msg:
+            if msg['switch_aerador']:
+                ligar_aerador()
+            else:
+                desligar_aerador()
+
+        if 'switch_refletor' in msg:
+            if msg['switch_refletor']:
+                ligar_refletor()
+            else:
+                desligar_refletor()
+
+        # Recebe dados, valida e os executa
     def atualizar(self, payload):
         resposta = ''
 
