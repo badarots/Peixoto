@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<body>
+  
+  <div class="title-row" id="agenda_titulo">
+    <h1>Teste</h1>
+  </div>
+
+  <table class="table-ativar">
+    <tr>
+      <td>Refletores 1</td>
+      <td colspan="2">
+        <label class="switch" id="switch_refletor">
+          <input type="checkbox">
+          <span class="slider round"></span>
+        </label>
+      </td>
+    </tr>
+
+    <tr>
+      <td>Aerador</td>
+      <td><input type="text" name="switch_aerador_intervalo" placeholder="intervalo"></input></td>
+      <td>
+        <label class="switch" id="switch_aerador">
+          <input type="checkbox">
+          <span class="slider round"></span>
+        </label>
+      </td>
+    </tr>
+
+    <tr>
+      <td>Tratador</td>
+      <td><input type="text" name="switch_tratador_vel" placeholder="Vel"></input></td>
+      <td>
+        <label class="switch" id="switch_tratador">
+          <input type="checkbox">
+          <span class="slider round"></span>
+        </label>
+      </td>
+    </tr>
+
+  </table>
+
+  <script type="text/javascript">
+
+    $(document).ready(function(){
+    
+      $(".switch").click(function(){ getSwitch($(this).attr('id')) });
+    });
+
+    function getSwitch(id) {
+      var interruptor = document.getElementById(id).getElementsByTagName('input')[0];
+      var data = {};
+      data[id] = interruptor.checked;
+      var msg = JSON.stringify(data);
+      ativar(msg);
+
+      console.log(msg);
+    }
+
+  </script>
+</body>

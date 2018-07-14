@@ -10,7 +10,7 @@ window.onload = function(){
     var port = window.location.port;
 
     if (protocol === "file:") {
-        wsuri = "ws://hackerspace.if.usp.br/crossbar/ws";
+        wsuri = "ws:/192.168.1.70/ws";
     } else {
         if (protocol == "https:"){
             wsuri = "wss://" + hostname;
@@ -22,7 +22,6 @@ window.onload = function(){
         }
         wsuri += window.location.pathname + "ws";
     }
-    //wsuri = 'ws://localhost:8010/ws'
     log("Protocol: " + window.location.protocol + " URL: " + wsuri);
 };
 
@@ -65,24 +64,62 @@ function connect(user_id, user_secret) {
                 log('Falha ao se inscrever no tópico status', err);
             }
         );
-        $("#content").load('agenda.html');
+
+        setLink("ativar");
         $("#status_conexao").html("Conectado");
     };
 
     connection.onclose = function(reason, details) {
-        log("Desconectado ", reason, details)
-        $("#content").load('login.html');
+        log("Desconectado ", reason, details);
+        
+        setLink("login");
         $("#status_conexao").html("Desconectado");
     };
 
     log('Conectando...')
     connection.open();
 
- };
+    $(".pages").click(function(){ setLink($(this).attr('page')) });
+    
+
+};
+
+// Define formulario inicio
+
+// Quando algum elemento da classe link é clicado carrega formulario
+// contido no atributo "page".
+//https://stackoverflow.com/questions/8079618/how-can-we-change-only-inner-part-of-a-web-page
+
+function setLink(page){
+    if (page == "login") {
+        var show = "none";
+    } else {
+        var show = "block";
+    }
+    document.getElementById("pages_header").style.display = show;
+
+    $("#content").load(page + ".html");
+    // muda a o cor dos botoes para sinalizar qual form. está aberto
+    $(".pages").removeClass("active");
+    $('#page_' + page).addClass("active");
+    console.log(page);
+};
 
 function send(msg) {
     if (connection.session != null){
-        connection.session.call('com.exec.atualizar', [msg], ).then(
+        connection.session.call('com.exec.atualizar', [msg]).then(
+            function (res) {
+                 log('Raspi - ' + res)
+            }
+        );
+    } else {
+        log('Não conectado');
+    }
+};
+
+function ativar(msg) {
+    if (connection.session != null){
+        connection.session.call('com.exec.ativar', [msg]).then(
             function (res) {
                  log('Raspi - ' + res)
             }
@@ -98,7 +135,7 @@ function close_conection(){
 
 function get_status() {
     if (connection.session != null){
-        return(connection.session.call('com.exec.status', [], ));
+        return(connection.session.call('com.exec.status', []));
     } else {
         log('Não conectado');
     }
