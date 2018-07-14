@@ -147,9 +147,9 @@ class Controlraspi(object):
         try:
             msg = json.loads(payload)
         except Exception as e:
-            db.log('mensagem', 'formato nao suportador', str(e), nivel='alerta')
+            db.log('mensagem', 'formato nao suportador', msg=str(e), nivel='alerta')
 
-        db.log('mensagem', 'ativação', msg)
+        db.log('mensagem', 'ativação', msg=msg)
 
         if 'switch_aerador' in msg:
             if msg['switch_aerador']:

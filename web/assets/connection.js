@@ -22,7 +22,6 @@ window.onload = function(){
         }
         wsuri += window.location.pathname + "ws";
     }
-    wsuri = 'ws://hackerspace.if.usp.br/crossbar/ws'
     log("Protocol: " + window.location.protocol + " URL: " + wsuri);
 };
 
@@ -109,6 +108,18 @@ function setLink(page){
 function send(msg) {
     if (connection.session != null){
         connection.session.call('com.exec.atualizar', [msg]).then(
+            function (res) {
+                 log('Raspi - ' + res)
+            }
+        );
+    } else {
+        log('Não conectado');
+    }
+};
+
+function ativar(msg) {
+    if (connection.session != null){
+        connection.session.call('com.exec.ativar', [msg]).then(
             function (res) {
                  log('Raspi - ' + res)
             }
