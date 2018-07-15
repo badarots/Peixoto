@@ -10,7 +10,7 @@ window.onload = function(){
     var port = window.location.port;
 
     if (protocol === "file:") {
-        wsuri = "ws:/192.168.1.70/ws";
+        wsuri = "ws:/201.131.170.231:8080/ws";
     } else {
         if (protocol == "https:"){
             wsuri = "wss://" + hostname;
@@ -121,7 +121,7 @@ function ativar(msg) {
     if (connection.session != null){
         connection.session.call('com.exec.ativar', [msg]).then(
             function (res) {
-                 log('Raspi - ' + res)
+                //log('Raspi - ' + res)
             }
         );
     } else {
@@ -133,9 +133,9 @@ function close_conection(){
     if (connection) connection.close();
 }
 
-function get_status() {
+function get_status(info) {
     if (connection.session != null){
-        return(connection.session.call('com.exec.status', []));
+        return(connection.session.call('com.exec.status', [info]));
     } else {
         log('Não conectado');
     }

@@ -7,7 +7,7 @@
 
   <table class="table-ativar">
     <tr>
-      <td>Refletores 1</td>
+      <td>Refletores</td>
       <td colspan="2">
         <label class="switch" id="switch_refletor">
           <input type="checkbox">
@@ -18,7 +18,7 @@
 
     <tr>
       <td>Aerador</td>
-      <td><input type="text" name="switch_aerador_intervalo" placeholder="intervalo"></input></td>
+      <td><input type="text" name="switch_aerador_intervalo" placeholder="intervalo"></td>
       <td>
         <label class="switch" id="switch_aerador">
           <input type="checkbox">
@@ -29,7 +29,7 @@
 
     <tr>
       <td>Tratador</td>
-      <td><input type="text" name="switch_tratador_vel" placeholder="Vel"></input></td>
+      <td><input type="text" name="switch_tratador_vel" placeholder="Vel"></td>
       <td>
         <label class="switch" id="switch_tratador">
           <input type="checkbox">
@@ -43,19 +43,39 @@
   <script type="text/javascript">
 
     $(document).ready(function(){
-    
-      $(".switch").click(function(){ getSwitch($(this).attr('id')) });
+      function switch_atualizar() {
+        
+        get_status('ativo').then(
+          function(msg) {
+            console.log('msg')
+          }, function(erro) {
+            console.log('erro')
+          }
+        );
+      }
+
+      //captura clicks nos interruptores
+      $(".switch").click(function(event){
+        //impede a mudança de estado dos imterruptores
+        event.preventDefault();
+        event.stopPropagation();
+        
+        // Se clicado mostra uma janela de confirmaçao antes de enviar
+        // a ativaçao do atuador
+        if (confirm('Ligar ou desligar')) {
+          var id = $(this).attr('id');
+          var interruptor = document.getElementById(id).getElementsByTagName('input')[0];
+          var data = {};
+          data[id] = interruptor.checked;
+          var msg = JSON.stringify(data);
+          ativar(msg);
+          
+          switch_atualizar();
+        }
+      });
     });
 
-    function getSwitch(id) {
-      var interruptor = document.getElementById(id).getElementsByTagName('input')[0];
-      var data = {};
-      data[id] = interruptor.checked;
-      var msg = JSON.stringify(data);
-      ativar(msg);
-
-      console.log(msg);
-    }
+    switch_atualizar();
 
   </script>
 </body>

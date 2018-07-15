@@ -13,6 +13,7 @@ import banco_de_dados as db
 
 
 pins = {"tratador": 23, "aerador": 24, "refletor": 25}
+pins_state = {x: False for x in pins}
 gpio = None
 
 # criação do scheduler
@@ -35,9 +36,18 @@ def configGPIO():
 # executa ações com os pinos
 
 def digitalWrite(pin, state):
+    if type(pin) == str:
+        pin = pins[pin]
+
     if gpio:
-        # o led liga em LOW, por isso o not na frente de state
+        # o relê liga em LOW, por isso o not na frente de state
         gpio.output(pin, not state)
+    
+    for key, value in pins.items():
+        if value == pin:
+            pin = key
+    # atualiza o estado dos pinos na memoria
+    pins_state[pin] = state
 
 def ligar_tratador(quantidade):
     # print('Tratador: ligado', racao)
@@ -132,13 +142,16 @@ class Controlraspi(object):
         self.wamp_session = None
 
     # procedimento que envia agenda atual para quem requisitou
-    def update_status(self):
-        msg = self.dumpMsg(self.agenda)
+    def update_status(self, info):
+        if info == "agenda":
+            msg = self.dumpMsg(self.agenda)
+        elif info == "ätivo":
+            msg = str(pins_state)
 
         if self.wamp_session is None:
             db.log('conexao', 'envia status', msg='desconectado', nivel='erro')
         # self.wamp_session.publish(u"com.myapp.status", msg)
-        db.log('conexao', 'envia status', msg='status enviado')
+        db.log('conexao', 'envia status', msg='enviado: ' + info)
         return msg
 
     # Liga e desliga os componentes a pedido do cliente
