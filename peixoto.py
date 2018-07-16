@@ -15,7 +15,7 @@ def main(reactor, teste):
     if acesso_remoto:
         wsurl = u"ws://201.131.170.231:8080/ws"
         # wsurl = u"ws://192.168.1.70/ws"
-    print(wsurl)
+    print('host:', wsurl)
 
     # configuração do cliente WAMP
     component = Component(

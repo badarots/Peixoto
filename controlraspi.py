@@ -15,7 +15,6 @@ import banco_de_dados as db
 with open('controlraspi.json') as f:
     conf = json.load(f)
 pins = conf
-print(pins)
 pins_state = {x: False for x in pins}
 gpio = None
 
@@ -103,16 +102,17 @@ class Controlraspi(object):
         self._wamp.on('leave', self._uninitialize)
 
         # configura pinos do raspberry
+        self.dispositivo = u'raspi'
         if teste:
             modo = 'Rodando em modo de teste, GPIO desbilitados'
-            self.dispositivo = 'teste'
+            self.dispositivo = u'teste'
         else:
             modo = 'GPIO habilitados'
             configGPIO()
-            self.dispositivo = 'raspi'
+            self.dispositivo = u'raspi'
 
         wamp_comp._transports
-        db.log('app', 'inicialização', msg=modo)
+        db.log('app', u'inicialização', msg=modo)
 
         scheduler.start()
 
@@ -130,9 +130,9 @@ class Controlraspi(object):
         self._wamp._transports[0].reset()
 
         try:
-            yield session.register(self.atualizar, u'com.' + self.dispositivo + '.atualizar')
-            yield session.register(self.update_status, u'com.' + self.dispositivo + '.status')
-            yield session.register(self.ativar, u'com.' + self.dispositivo + '.ativar')
+            yield session.register(self.atualizar, u'com.' + self.dispositivo + u'.atualizar')
+            yield session.register(self.update_status, u'com.' + self.dispositivo + u'.status')
+            yield session.register(self.ativar, u'com.' + self.dispositivo + u'.ativar')
 
             # print("procedimentos registrados")
             db.log('conexao', 'registro', msg='procedimentos registrados')
@@ -167,9 +167,9 @@ class Controlraspi(object):
         try:
             msg = json.loads(payload)
         except Exception:
-            db.log('mensagem', 'ativação', msg='Formato de msg não suportada: ' + str(payload), nivel='alerta')
+            db.log('mensagem', 'ativacao', msg='Formato de msg nao suportada: ' + str(payload), nivel='alerta')
         else:
-            db.log('mensagem', 'ativação', msg=str(msg))
+            db.log('mensagem', 'ativacao', msg=str(msg))
 
             if 'aerador' in msg:
                 if msg['aerador']:
@@ -183,9 +183,8 @@ class Controlraspi(object):
                 else:
                     desligar_refletor()
             
-            if 'tratador' in msg:
-                if msg['refletor']:
-                    ligar_refletor()
+            if 'teste' in msg:
+                pins_state["teste"] = msg["teste"]
 
         print(json.dumps(pins_state))
         return json.dumps(pins_state)
