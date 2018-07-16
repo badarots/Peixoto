@@ -392,6 +392,7 @@ html{
 
 }
 
+/* Configurações dos interruptores */
 .switch {
   position: relative;
   display: inline-block;

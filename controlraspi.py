@@ -11,8 +11,11 @@ from apscheduler.triggers.cron import CronTrigger
 # import da estrutura de metodos de escrita no banco de dados
 import banco_de_dados as db
 
-
-pins = {"tratador": 23, "aerador": 24, "refletor": 25}
+# carrega arquivo de configurações
+with open('controlraspi.json') as f:
+    conf = json.load(f)
+pins = conf
+print(pins)
 pins_state = {x: False for x in pins}
 gpio = None
 
@@ -102,10 +105,13 @@ class Controlraspi(object):
         # configura pinos do raspberry
         if teste:
             modo = 'Rodando em modo de teste, GPIO desbilitados'
+            self.dispositivo = 'teste'
         else:
             modo = 'GPIO habilitados'
             configGPIO()
+            self.dispositivo = 'raspi'
 
+        wamp_comp._transports
         db.log('app', 'inicialização', msg=modo)
 
         scheduler.start()
@@ -124,9 +130,9 @@ class Controlraspi(object):
         self._wamp._transports[0].reset()
 
         try:
-            yield session.register(self.atualizar, u'com.exec.atualizar')
-            yield session.register(self.update_status, u'com.exec.status')
-            yield session.register(self.ativar, u'com.exec.ativar')
+            yield session.register(self.atualizar, u'com.' + self.dispositivo + '.atualizar')
+            yield session.register(self.update_status, u'com.' + self.dispositivo + '.status')
+            yield session.register(self.ativar, u'com.' + self.dispositivo + '.ativar')
 
             # print("procedimentos registrados")
             db.log('conexao', 'registro', msg='procedimentos registrados')
@@ -143,10 +149,11 @@ class Controlraspi(object):
 
     # procedimento que envia agenda atual para quem requisitou
     def update_status(self, info):
+        msg = None
         if info == "agenda":
             msg = self.dumpMsg(self.agenda)
-        elif info == "ätivo":
-            msg = str(pins_state)
+        elif info == "ativo":
+            msg = json.dumps(pins_state)
 
         if self.wamp_session is None:
             db.log('conexao', 'envia status', msg='desconectado', nivel='erro')
@@ -159,22 +166,29 @@ class Controlraspi(object):
     def ativar(self, payload):
         try:
             msg = json.loads(payload)
-        except Exception as e:
-            db.log('mensagem', 'formato nao suportador', msg=str(e), nivel='alerta')
+        except Exception:
+            db.log('mensagem', 'ativação', msg='Formato de msg não suportada: ' + str(payload), nivel='alerta')
         else:
-            db.log('mensagem', 'ativação', msg=msg)
+            db.log('mensagem', 'ativação', msg=str(msg))
 
-            if 'switch_aerador' in msg:
-                if msg['switch_aerador']:
+            if 'aerador' in msg:
+                if msg['aerador']:
                     ligar_aerador()
                 else:
                     desligar_aerador()
 
-            if 'switch_refletor' in msg:
-                if msg['switch_refletor']:
+            if 'refletor' in msg:
+                if msg['refletor']:
                     ligar_refletor()
                 else:
                     desligar_refletor()
+            
+            if 'tratador' in msg:
+                if msg['refletor']:
+                    ligar_refletor()
+
+        print(json.dumps(pins_state))
+        return json.dumps(pins_state)
 
         # Recebe dados, valida e os executa
     def atualizar(self, payload):

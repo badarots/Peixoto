@@ -1,0 +1,3 @@
+# Pacores necessarios para o servidor
+-r requeriments.txt
+crossbar

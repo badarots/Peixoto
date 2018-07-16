@@ -17,3 +17,6 @@ __pycache__/
 *$py.class
 python*/
 Python*/
+
+# IDEs
+.vscode/

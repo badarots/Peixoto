@@ -1,33 +1,14 @@
 var connection = null;
 var ellog = null;
-var wsuri = null;
+var dispositivo
 
-window.onload = function(){
-    ellog = document.getElementById('log');
+window.onload = function(){ ellog = document.getElementById('log'); };
 
-    var protocol = window.location.protocol;
-    var hostname = window.location.hostname;
-    var port = window.location.port;
-
-    if (protocol === "file:") {
-        wsuri = "ws:/201.131.170.231:8080/ws";
-    } else {
-        if (protocol == "https:"){
-            wsuri = "wss://" + hostname;
-        } else {
-            wsuri = "ws://" + hostname;
-        }
-        if (hostname == "localhost" || hostname == "127.0.0.1" || hostname == "0.0.0.0") {
-            wsuri += ":" + port;
-        }
-        wsuri += window.location.pathname + "ws";
-    }
-    log("Protocol: " + window.location.protocol + " URL: " + wsuri);
-};
-
-function connect(user_id, user_secret) {
+function connect(user_id, user_secret, disp) {
     user_id = 'badaro';
     user_secret = '1234';
+    dispositivo = disp;
+    
 
     connection = new autobahn.Connection({
         url: wsuri,
@@ -45,7 +26,7 @@ function connect(user_id, user_secret) {
 
             return autobahn.auth_cra.sign(user_secret, extra.challenge);
         } else {
-            throw "don't know how to authenticate using '" + method + "'";
+            throw "don't know how to authsenticate using '" + method + "'";
         }
     }
 
@@ -107,9 +88,9 @@ function setLink(page){
 
 function send(msg) {
     if (connection.session != null){
-        connection.session.call('com.exec.atualizar', [msg]).then(
+        connection.session.call('com.' + dispositivo + '.atualizar', [msg]).then(
             function (res) {
-                 log('Raspi - ' + res)
+                 log('Raspi - ' + res);
             }
         );
     } else {
@@ -119,11 +100,15 @@ function send(msg) {
 
 function ativar(msg) {
     if (connection.session != null){
-        connection.session.call('com.exec.ativar', [msg]).then(
-            function (res) {
-                //log('Raspi - ' + res)
-            }
-        );
+        return(connection.session.call('com.' + dispositivo + '.ativar', [msg]));
+    } else {
+        log('Não conectado');
+    }
+};
+
+function get_status(info) {
+    if (connection.session != null){
+        return(connection.session.call('com.' + dispositivo + '.status', [info]));
     } else {
         log('Não conectado');
     }
@@ -132,14 +117,6 @@ function ativar(msg) {
 function close_conection(){
     if (connection) connection.close();
 }
-
-function get_status(info) {
-    if (connection.session != null){
-        return(connection.session.call('com.exec.status', [info]));
-    } else {
-        log('Não conectado');
-    }
-};
 
 function log(m) {
     ellog.innerHTML = m + '\n' + ellog.innerHTML;

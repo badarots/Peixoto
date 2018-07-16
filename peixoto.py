@@ -11,12 +11,17 @@ import controlraspi as app
 
 @inlineCallbacks
 def main(reactor, teste):
+    wsurl = u"ws://localhost/ws"
+    if acesso_remoto:
+        wsurl = u"ws://201.131.170.231:8080/ws"
+        # wsurl = u"ws://192.168.1.70/ws"
+    print(wsurl)
+
     # configuração do cliente WAMP
     component = Component(
         transports=[
             {
-                #u"url": u"ws://localhost:8010/ws",
-                u"url": u"ws://localhost/ws",
+                u"url": wsurl,
 
                 # you can set various websocket options here if you want
                 u"max_retries": -1,
@@ -63,13 +68,8 @@ def main(reactor, teste):
     yield done
 
 if __name__ == '__main__':
-    try:
-        arg = sys.argv[1]
-    except Exception:
-        arg = None
-
-    teste = (arg == 'teste')
-
+    teste = ('teste' in sys.argv)
+    acesso_remoto = ('remoto' in sys.argv)
 
     try:
         react(main, [teste])

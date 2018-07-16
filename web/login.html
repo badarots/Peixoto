@@ -16,21 +16,55 @@
     <input type="password" id="senha" placeholder="Senha"></input>
   </div>
 
+  <div class='line-row'>
+    <label> Teste
+      <input type="checkbox" id="teste">
+    </label>
+  </div>
+
+  <div class='line-row'>
+    <label>Url
+      <input type="text" id="wsuri">
+    </label>
+  </div>
+
 </form>
 
 <button class="submit_button" id="conectar">Conectar</button>
 
 <script type="text/javascript">
-  $(document).ready(function(
-                             ){
+  
+  // encontra endereço padrão de conexão
+  var wsuri = null;
 
+  $(document).ready(function() {
+    var protocol = window.location.protocol;
+    var host = window.location.host;
+    var port = window.location.port;
+
+    if (protocol === "file:") {
+        wsuri = "ws://201.131.170.231:8080/ws";
+    } else {
+        if (protocol == "https:"){
+            wsuri = "wss://" + host;
+        } else {
+            wsuri = "ws://" + host;
+        }
+        wsuri += window.location.pathname + "ws";
+    }
+    document.getElementById('wsuri').value = wsuri
+
+    // 
     var conectar = function conectar(event){
         event.preventDefault();
 
         var user_id = $("#usuario").val();
         var user_secret = $("#senha").val();
+        wsuri = document.getElementById("wsuri").value;
+        var dispositivo = 'raspi';
+        if (document.getElementById('teste').checked) { dispositivo = 'teste'}
 
-        connect(user_id, user_secret);
+        connect(user_id, user_secret, dispositivo);
     }
       // conectar-se usando credenciais
       $("#conectar").on('click', conectar);
