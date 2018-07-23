@@ -5,10 +5,7 @@ var dispositivo
 window.onload = function(){ ellog = document.getElementById('log'); };
 
 function connect(user_id, user_secret, disp) {
-    user_id = 'badaro';
-    user_secret = '1234';
-    dispositivo = disp;
-    
+    dispositivo = disp;    
 
     connection = new autobahn.Connection({
         url: wsuri,

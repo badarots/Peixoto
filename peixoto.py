@@ -4,10 +4,25 @@ import sys
 from autobahn.twisted.component import Component
 from twisted.internet.defer import Deferred, inlineCallbacks
 from twisted.internet.task import react
+from twisted.web import server, resource
 
 # import do controlador do raspi
 import controlraspi as app
 
+class Simple(resource.Resource):
+    isLeaf = True
+    def render_GET(self, request):
+        print(request.args)
+        # response = "{}".format(request.args).encode('utf-8')
+        return b"OK"
+    def render_POST(self, request):
+        with open(request.args['filename'][0], 'wb') as fd:
+            fd.write(request.content.read())
+        request.setHeader('Content-Length', os.stat(request.args['filename'][0]).st_size)
+        with open(request.args['filename'][0], 'rb') as fd:
+            request.write(fd.read())
+        request.finish()
+        return server.NOT_DONE_YET
 
 @inlineCallbacks
 def main(reactor, teste):
@@ -49,6 +64,11 @@ def main(reactor, teste):
     # The Deferred it returns fires when the component is "completed"
     # (or errbacks on any problems).
     comp_d = controller._wamp.start(reactor)
+
+    # inicia servidor para escutar a rede local
+    # serve para controlar outros controladores por wifi
+    site = server.Site(Simple())
+    reactor.listenTCP(8080, site)
 
     # When not using run() we also must start logging ourselves.
     import txaio
