@@ -51,7 +51,9 @@
   <script type="text/javascript">
 
     $(document).ready(function(){
-      function switch_atualizar(msg) {
+      function switch_atualizar(payload) {
+        msg = JSON.parse(payload)
+        console.log(msg)
         // formato da msg = {'tratador': true, 'aerador': true, 'aerador_tempo': 1:20, ...}
         for (var key in msg) {
           var el = document.getElementById("switch_" + key);
@@ -63,11 +65,16 @@
       }
       get_status('ativo').then(
           function(msg) {
-            switch_atualizar(JSON.parse(msg));
+            switch_atualizar(msg);
           }, function(erro) {
             console.log('erro ao tentar obter status atual: ', erro);
           }
         );
+      
+      connection.session.subscribe('com.' + dispositivo + '.componentes', switch_atualizar).then(
+          function (sub) {log('Inscrito no tópico componentes');},
+          function (err) {log('Falha ao se inscrever no tópico componentes', err);}
+      );
 
       //captura clicks nos interruptores
       $(".switch").click(function(event){

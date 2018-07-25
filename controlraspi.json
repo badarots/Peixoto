@@ -1,7 +1,28 @@
-{
-    "tratador": 23, 
-    "aerador": 24, 
-    "refletor": 25,
-    "dht22": 4,
-    "teste": 17
+{   
+    "saidas": {
+        "aerador": 24,
+        "tratador": "remoto",
+        "refletor": 25,
+        "teste": 17
+    },
+    "entradas": {
+        "aerador": 23,
+        "tratador": "remoto",
+        "refletor": "saida",
+        "presenca_tratador": "remoto",
+        "presenca_quiosque": 22,
+        "teste": 17
+    },
+    "sensores": {
+        "sensor_dht22": 4
+    },
+    "perifericos": {
+        "tratador": {
+            "tipo": "esp-12e",
+            "host": "esptratador",
+            "senha": "tratador",
+            "senha_upload": "admin"
+        }
+    }
+
 }

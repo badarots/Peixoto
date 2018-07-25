@@ -6,7 +6,10 @@
 #include <ESP8266HTTPClient.h>
 
 // configuraçoes para o tratador
-#define VEL_PIN 16
+#define FREQ_PIN 16
+#define FREQ_MIN 500
+#define FREQ_MAX 2500
+#define FREQ_STD 1500
 #define PULSO_PIN 14
 #define N_PARAMETROS 3  //numero de parametros em um pedido
 
@@ -19,12 +22,12 @@ const int output_pins[] = {16, 14, 2};
 const byte input_n = 2;
 const int input_pins[] = {12, 13};
 const unsigned long connection_timeout = 1000;
-const char* host = "http://10.1.1.16:8080";
+const char* host = "http://192.168.1.70:8080";
 
 // variavaies de controle de inputs
-volatile boolean presenca_state;
+volatile boolean presenca_flag;
 unsigned long presenca_temp;
-volatile boolean motor_change;
+volatile boolean motor_flag;
 unsigned long motor_temp;
 const unsigned int sendGET_tempmin = 1000; //tempo minimo entre dois envios em ms
 
@@ -41,6 +44,9 @@ void setup()
   for (int i = 0; i < input_n; i++) {
     pinMode(input_pins[i], INPUT_PULLUP);
   }
+
+  // configura freq padrao
+  setFrequency(FREQ_PIN, FREQ_STD);
 
   // configura interruptor dos sinais de entrada
   attachInterrupt(digitalPinToInterrupt(input_pins[0]), interPresenca, RISING);
@@ -66,7 +72,7 @@ void setup()
   // ArduinoOTA.setPort(8266);
 
   // Hostname defaults to esp8266-[ChipID]
-  ArduinoOTA.setHostname("esp_tratador");
+  ArduinoOTA.setHostname("esptratador");
 
   // No authentication by default
   ArduinoOTA.setPassword("admin");
@@ -120,32 +126,37 @@ void loop()
   // lida com OTA
   ArduinoOTA.handle();
 
-  // lida com os pinos de entrada
-  if (presenca_state && (millis() - presenca_temp) > sendGET_tempmin) {
+  // controla pulso
+  if (pulse_pin != -1 && millis() >= pulse_end) {
+    digitalWrite(pulse_pin, LOW);
+    pulse_pin = -1;
+  }
+
+  //---------------------------------------------//
+  //      lida com pinos de entrada
+  //---------------------------------------------//
+  // a flag eh levantada com a mudanca LOW -> HIGH
+  // pino LOW: sem presenca, HIGH: presenca detectada
+  if (presenca_flag && (millis() - presenca_temp) > sendGET_tempmin) {
     presenca_temp = millis();
     Serial.println("interrupt presenca");
     String resposta = sendGET("?tratador_presenca=true");
     // o programa vai continuar reeviando a msg ate receber uma resposta do servidor
-    if (resposta = "OK") presenca_state = false; 
-
+    if (resposta = "OK") presenca_flag = false;
   }
-
-  if (motor_change && (millis() - motor_temp) > sendGET_tempmin) {
+  
+  // a flag eh levantada com a mudanca do estado do pino
+  // pino LOW: motor ligado, HIGH: desligado
+  if (motor_flag && (millis() - motor_temp) > sendGET_tempmin) {
     motor_temp = millis();
     Serial.println("interrupt motor");
     boolean motor_state = digitalRead(input_pins[1]);
     
     String parametros;
-    if (motor_state) parametros = "?tratador_motor=true";
-    else parametros = "?tratador_motor=false";
+    if (motor_state) parametros = "?tratador_motor=desligado";
+    else parametros = "?tratador_motor=ligado";
     String resposta = sendGET(parametros);
-    if (resposta = "OK") motor_change = false;
-  }
-
-  // controla pulso
-  if (pulse_pin != -1 && millis() >= pulse_end) {
-    digitalWrite(pulse_pin, LOW);
-    pulse_pin = -1;
+    if (resposta = "OK") motor_flag = false;
   }
 
   //---------------------------------------------//
@@ -193,17 +204,29 @@ void loop()
     if (pedido[1] == "tratar") {
       if (pedido[2].indexOf("freq") == 0 ) {
         int freq = pedido[2].substring(4).toInt();
-        freq = constrain(freq, 500, 2500);
-        setFrequency(VEL_PIN, freq); //configura velocidade do motor
-        delay(100); //espera o inversor ler corretamente a velocidade
-        setPulse(PULSO_PIN, 1000); //gera pulso que inicia o ciclo de tratamento
-        resp = "tratamento freq=" + String(freq);
+        if (freq < FREQ_MIN || freq > FREQ_MAX) {
+          resp = "frequencia nao permitida: " + String(freq) + 
+              "\nfaixa permitida: " + String(FREQ_MIN) + '-' + String(FREQ_MAX);
+        } else {
+          setFrequency(FREQ_PIN, freq); //configura velocidade do motor
+          delay(100); //espera o inversor ler corretamente a velocidade
+          setPulse(PULSO_PIN, 1000); //gera pulso que inicia o ciclo de tratamento
+          resp = "tratamento freq=" + String(freq);
+        }
 
       }
     } else if (pedido[1] == "envia") {
       resp = sendGET("?oi=true");
 
-    } else if (pedido[1].indexOf("pin") == 0) {
+    } else if(pedido[1] == "presenca") {
+      presenca_flag = true;
+      resp = "flag de prefenca levantada";
+
+    } else if(pedido[1] == "motor") {
+      motor_flag = true;
+      resp = "flag do motor levantada";
+    }
+    else if (pedido[1].indexOf("pin") == 0) {
       int pin = pedido[1].substring(3).toInt();
       //tipos de pinos:
       //1: output, 2: input, 3: invalido
@@ -289,11 +312,11 @@ void setPulse(int pin, unsigned long pulse) {
 }
 
 void interPresenca() {
-  presenca_state = true;
+  presenca_flag = true;
 }
 
 void interMotor() {
-  motor_change = true;
+  motor_flag = true;
 }
 
 String sendGET(String parametros) {

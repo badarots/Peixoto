@@ -14,8 +14,12 @@ import banco_de_dados as db
 # carrega arquivo de configurações
 with open('controlraspi.json') as f:
     conf = json.load(f)
-pins = conf
-pins_state = {x: False for x in pins}
+
+output_pins = conf["saidas"]
+input_pins = conf["entradas"]
+estado = {x: False for x in input_pins}
+sensor_pins = conf["sensores"]
+
 gpio = None
 
 # criação do scheduler
@@ -31,53 +35,55 @@ def configGPIO():
     gpio = GPIO
 
     gpio.setmode(gpio.BCM)
-    for pin in pins:
-        gpio.setup(pins[pin], gpio.OUT, initial=gpio.HIGH)
-
+    for pin in output_pins:
+        gpio.setup(output_pins[pin], gpio.OUT, initial=gpio.HIGH)
+    for pin in input_pins:
+        gpio.setup(input_pins[pin], gpio.IN, pull_up_down=gpio.PUD_UP)
+        estado[pin] = not gpio.input(pin)
 
 # executa ações com os pinos
 
 def digitalWrite(pin, state):
     if type(pin) == str:
-        pin = pins[pin]
+        pin = output_pins[pin]
 
     if gpio:
         # o relê liga em LOW, por isso o not na frente de state
         gpio.output(pin, not state)
     
-    for key, value in pins.items():
-        if value == pin:
-            pin = key
-    # atualiza o estado dos pinos na memoria
-    pins_state[pin] = state
+    # for key, value in pins.items():
+    #     if value == pin:
+    #         pin = key
+    # # atualiza o estado dos pinos na memoria
+    # pins_state[pin] = state
 
 def ligar_tratador(quantidade):
     # print('Tratador: ligado', racao)
     db.log('tratador', 'ligado', msg='quantidade: ' + str(quantidade))
-    digitalWrite(pins['tratador'], True)
+    # digitalWrite(pins['tratador'], True)
 
-    scheduler.add_job(desligar_tratador, 'date', run_date=dt.datetime.now() + dt.timedelta(seconds=2))
+    # scheduler.add_job(desligar_tratador, 'date', run_date=dt.datetime.now() + dt.timedelta(seconds=2))
 
-def desligar_tratador():
-    # print('Tratador: fim do pulso')
-    db.log('tratador', 'fim do pulso')
-    digitalWrite(pins['tratador'], False)
+# def desligar_tratador():
+#     # print('Tratador: fim do pulso')
+#     db.log('tratador', 'fim do pulso')
+#     digitalWrite(pins['tratador'], False)
 
 def ligar_aerador():
     db.log('aerador', 'ligado')
-    digitalWrite(pins['aerador'], True)
+    digitalWrite(output_pins['aerador'], True)
 
 def desligar_aerador():
     db.log('aerador', 'desligado')
-    digitalWrite(pins['aerador'], False)
+    digitalWrite(output_pins['aerador'], False)
 
 def ligar_refletor():
     db.log('refletor', 'ligado')
-    digitalWrite(pins['refletor'], True)
+    digitalWrite(output_pins['refletor'], True)
 
 def desligar_refletor():
     db.log('refletor', 'desligado')
-    digitalWrite(pins['refletor'], False)
+    digitalWrite(output_pins['refletor'], False)
 
 def exit(exception):
     # print("Desligamento: limpando pinos")
@@ -102,14 +108,18 @@ class Controlraspi(object):
         self._wamp.on('leave', self._uninitialize)
 
         # configura pinos do raspberry
-        self.dispositivo = u'raspi'
         if teste:
             modo = 'Rodando em modo de teste, GPIO desbilitados'
             self.dispositivo = u'teste'
         else:
             modo = 'GPIO habilitados'
             configGPIO()
+            # configura interruptores 
+            for key, val in input_pins.items():
+                if type(val) == int:
+                    gpio.add_event_detect(val, gpio.BOTH, callback=self.input_state, bouncetime=300)
             self.dispositivo = u'raspi'
+        self.dispositivo = u'com.' + self.dispositivo
 
         wamp_comp._transports
         db.log('app', u'inicialização', msg=modo)
@@ -130,9 +140,9 @@ class Controlraspi(object):
         self._wamp._transports[0].reset()
 
         try:
-            yield session.register(self.atualizar, u'com.' + self.dispositivo + u'.atualizar')
-            yield session.register(self.update_status, u'com.' + self.dispositivo + u'.status')
-            yield session.register(self.ativar, u'com.' + self.dispositivo + u'.ativar')
+            yield session.register(self.atualizar, self.dispositivo + u'.atualizar')
+            yield session.register(self.update_status, self.dispositivo + u'.status')
+            yield session.register(self.ativar, self.dispositivo + u'.ativar')
 
             # print("procedimentos registrados")
             db.log('conexao', 'registro', msg='procedimentos registrados')
@@ -152,17 +162,62 @@ class Controlraspi(object):
         msg = None
         if info == "agenda":
             msg = self.dumpMsg(self.agenda)
-        elif info == "ativo":
-            msg = json.dumps(pins_state)
-
-        if self.wamp_session is None:
-            db.log('conexao', 'envia status', msg='desconectado', nivel='erro')
-        # self.wamp_session.publish(u"com.myapp.status", msg)
-        db.log('conexao', 'envia status', msg='enviado: ' + info)
+        elif info == "estado":
+            msg = json.dumps(estado)
         return msg
 
-    # Liga e desliga os componentes a pedido do cliente
+    def send_update(self, info):
+        msg = self.update_status("estado")
+        if self.wamp_session is None:
+            db.log('conexao', 'envia status', msg='desconectado', nivel='erro')
+        else:
+            self.wamp_session.publish(self.dispositivo + ".componentes", msg)
+            db.log('conexao', 'envia status', msg='enviado: ' + info)        
 
+    # lida com mudanças no estado dos pinos de entrada
+    def input_state(self, channel):
+        modulo = None
+        for key, value in input_pins:
+            if value == channel:
+                modulo = key
+        
+        # atualiza o estado dos pinos na memoria
+        estado[modulo] = not gpio.input(channel)
+        # envia atualizacao
+        self.send_update("estado")
+    
+    # lida com mudança de estado de pinos de saida
+    def output_state(self, payload):
+        for key in payload:
+            estado[key] = payload[key]
+        self.send_update 
+
+    # lida com as mudancas de estado de modulos remotos
+    def remote_state(self, payload):
+        mudanca = False
+        if b'tratador_presenca' in payload:
+            mudanca = True
+            print("Prensenca no tratador")
+            estado['presenca_tratador'] = dt.datetime.now()           
+        
+        if b'tratador_motor' in payload:
+            mudanca = True
+            print('Tratador ligado: {}'.format(payload[b'tratador_motor'][0]))
+            if payload[b'tratador_motor'][0] == b'true':
+                estado['tratador'] = True
+            else:
+                estado['tratador'] = False
+
+        # envia novo status de dispositvos para
+        if mudanca and self.wamp_session:
+            self.send_update("estado")
+            # msg = json.dumps(estado)
+            # url = self.dispositivo + ".componentes"
+            # yield self.wamp_session.publish(url, msg)
+            # db.log('publicacao', url, msg='enviado: ativo')                       
+            
+
+    # liga e desliga os componentes a pedido do cliente
     def ativar(self, payload):
         try:
             msg = json.loads(payload)
@@ -184,10 +239,10 @@ class Controlraspi(object):
                     desligar_refletor()
             
             if 'teste' in msg:
-                pins_state["teste"] = msg["teste"]
+                estado["teste"] = msg["teste"]
 
-        print(json.dumps(pins_state))
-        return json.dumps(pins_state)
+        # print(json.dumps(pins_state))
+        # return json.dumps(pins_state)
 
         # Recebe dados, valida e os executa
     def atualizar(self, payload):
@@ -201,11 +256,6 @@ class Controlraspi(object):
 
         else:
             resposta += 'Atualizado: '
-            if 'leds' in nova_agenda:
-                resposta += 'Leds '
-                db.log('leds', 'atualizado', msg=self.stringfyAgenda(nova_agenda['leds']))
-                self.attLeds(nova_agenda['leds'])
-
             if 'tratador' in nova_agenda:
                 resposta += 'Tratador '
                 db.log('tratador', 'atualizado', msg=self.stringfyAgenda(nova_agenda['tratador']))
@@ -383,8 +433,15 @@ class Controlraspi(object):
         for i in range(len(agenda)):
             scheduler.add_job(ligar_tratador, self.geraCronTrigger(agenda[i][0]), args=[agenda[i][1]], id='ligar_tratador_' + str(i))
 
-    def attLeds(self, agenda):
-        pass
+    # envelopes para atualizar o estados na memoria dos pinos de saida 
+    # que nao possuem um correspondente de entrada
+    def liga_refletor(self):
+        ligar_refletor()
+        self.output_state({"refletor": True})
+    
+    def desliga_refletor(self):
+        desligar_refletor()
+        self.output_state({"refletor": False})
 
     def geraCronTrigger(self, time):
         return CronTrigger(hour=time.hour, minute=time.minute, second=time.second)

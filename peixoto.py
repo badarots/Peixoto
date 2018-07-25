@@ -5,24 +5,57 @@ from autobahn.twisted.component import Component
 from twisted.internet.defer import Deferred, inlineCallbacks
 from twisted.internet.task import react
 from twisted.web import server, resource
+from twisted.web.client import Agent, readBody
+from twisted.web.http_headers import Headers
 
 # import do controlador do raspi
 import controlraspi as app
 
+# cria servidor para recerber msg dos componentes remotos
 class Simple(resource.Resource):
     isLeaf = True
+    controller = None
+
     def render_GET(self, request):
-        print(request.args)
-        # response = "{}".format(request.args).encode('utf-8')
+        if self.controller:
+            self.controller.remote_state(request.args)
         return b"OK"
-    def render_POST(self, request):
-        with open(request.args['filename'][0], 'wb') as fd:
-            fd.write(request.content.read())
-        request.setHeader('Content-Length', os.stat(request.args['filename'][0]).st_size)
-        with open(request.args['filename'][0], 'rb') as fd:
-            request.write(fd.read())
-        request.finish()
-        return server.NOT_DONE_YET
+    
+    # def render_POST(self, request):
+    #     with open(request.args['filename'][0], 'wb') as fd:
+    #         fd.write(request.content.read())
+    #     request.setHeader('Content-Length', os.stat(request.args['filename'][0]).st_size)
+    #     with open(request.args['filename'][0], 'rb') as fd:
+    #         request.write(fd.read())
+    #     request.finish()
+    #     return server.NOT_DONE_YET
+
+
+# objeto que envia msg para os dispositivos remotos
+class Requests():
+    def __init__(self, reactor):
+        self.agent = Agent(reactor)
+        self.d = None
+        
+    def get_request(self, url):    
+        self.d = self.agent.request(
+            b'GET', url,
+            Headers(),
+            None)
+        self.d.addCallback(self.cbRequest)
+        return self.d
+
+    def cbRequest(self, response):
+        print('Response version:', response.version)
+        print('Response code:', response.code)
+        print('Response phrase:', response.phrase)
+        self.d = readBody(response)
+        self.d.addCallback(self.cbBody)
+        return self.d
+
+    def cbBody(self, body):
+        print('Response body:')
+        print(body)
 
 @inlineCallbacks
 def main(reactor, teste):
@@ -55,7 +88,6 @@ def main(reactor, teste):
         }
     )
 
-
     # cria app principal
     controller = app.Controlraspi(component, teste=teste)
 
@@ -66,8 +98,12 @@ def main(reactor, teste):
     comp_d = controller._wamp.start(reactor)
 
     # inicia servidor para escutar a rede local
-    # serve para controlar outros controladores por wifi
-    site = server.Site(Simple())
+    # serve para controlar outros dispositivos por wifi
+    # local_server = LocalServer()
+    # local_server.controller = controller
+    local_server = Simple()
+    local_server.controller = controller
+    site = server.Site(local_server)
     reactor.listenTCP(8080, site)
 
     # When not using run() we also must start logging ourselves.
