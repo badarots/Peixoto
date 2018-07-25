@@ -89,7 +89,7 @@ def main(reactor, teste):
     )
 
     # cria app principal
-    controller = app.Controlraspi(component, teste=teste)
+    controller = app.Controlraspi(component, reactor, teste=teste)
 
     # we don't *have* to hand over control of the reactor to
     # component.run -- if we don't want to, we call .start()

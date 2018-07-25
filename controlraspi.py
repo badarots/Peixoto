@@ -15,9 +15,9 @@ import banco_de_dados as db
 with open('controlraspi.json') as f:
     conf = json.load(f)
 
-output_pins = conf["saidas"]
-input_pins = conf["entradas"]
-estado = {x: False for x in input_pins}
+output_pins = {key: val for key, val in conf["saidas"].items() if type(val) == int}
+input_pins = {key: val for key, val in conf["entradas"].items() if type(val) == int}
+estado = {x: False for x in conf["saidas"]}
 sensor_pins = conf["sensores"]
 
 gpio = None
@@ -39,7 +39,7 @@ def configGPIO():
         gpio.setup(output_pins[pin], gpio.OUT, initial=gpio.HIGH)
     for pin in input_pins:
         gpio.setup(input_pins[pin], gpio.IN, pull_up_down=gpio.PUD_UP)
-        estado[pin] = not gpio.input(pin)
+        estado[pin] = not gpio.input(input_pins[pin])
 
 # executa ações com os pinos
 
@@ -97,7 +97,7 @@ class Controlraspi(object):
     """
     """
 
-    def __init__(self, wamp_comp, teste=False):
+    def __init__(self, wamp_comp, reactor, teste=False):
         self.agenda = db.recupera_agenda()
 
         # wamp config
@@ -106,6 +106,8 @@ class Controlraspi(object):
         # associate ourselves with WAMP session lifecycle
         self._wamp.on('join', self._initialize)
         self._wamp.on('leave', self._uninitialize)
+
+        self.reactor = reactor
 
         # configura pinos do raspberry
         if teste:
@@ -117,7 +119,7 @@ class Controlraspi(object):
             # configura interruptores 
             for key, val in input_pins.items():
                 if type(val) == int:
-                    gpio.add_event_detect(val, gpio.BOTH, callback=self.input_state, bouncetime=300)
+                    gpio.add_event_detect(val, gpio.BOTH, callback=self.input_state_thread, bouncetime=300)
             self.dispositivo = u'raspi'
         self.dispositivo = u'com.' + self.dispositivo
 
@@ -125,7 +127,6 @@ class Controlraspi(object):
         db.log('app', u'inicialização', msg=modo)
 
         scheduler.start()
-
 
     @inlineCallbacks
     def _initialize(self, session, details):
@@ -172,12 +173,15 @@ class Controlraspi(object):
             db.log('conexao', 'envia status', msg='desconectado', nivel='erro')
         else:
             self.wamp_session.publish(self.dispositivo + ".componentes", msg)
-            db.log('conexao', 'envia status', msg='enviado: ' + info)        
+            db.log('conexao', 'envia status', msg='enviado {}: {}'.format(info, msg))        
 
     # lida com mudanças no estado dos pinos de entrada
+    def input_state_thread(self, channel):
+        self.reactor.callFromThread(self.input_state, channel)
+
     def input_state(self, channel):
         modulo = None
-        for key, value in input_pins:
+        for key, value in input_pins.items():
             if value == channel:
                 modulo = key
         
@@ -190,7 +194,7 @@ class Controlraspi(object):
     def output_state(self, payload):
         for key in payload:
             estado[key] = payload[key]
-        self.send_update 
+        self.send_update("estado")
 
     # lida com as mudancas de estado de modulos remotos
     def remote_state(self, payload):
@@ -234,9 +238,9 @@ class Controlraspi(object):
 
             if 'refletor' in msg:
                 if msg['refletor']:
-                    ligar_refletor()
+                    self.ligar_refletor()
                 else:
-                    desligar_refletor()
+                    self.desligar_refletor()
             
             if 'teste' in msg:
                 estado["teste"] = msg["teste"]
@@ -435,11 +439,11 @@ class Controlraspi(object):
 
     # envelopes para atualizar o estados na memoria dos pinos de saida 
     # que nao possuem um correspondente de entrada
-    def liga_refletor(self):
+    def ligar_refletor(self):
         ligar_refletor()
         self.output_state({"refletor": True})
     
-    def desliga_refletor(self):
+    def desligar_refletor(self):
         desligar_refletor()
         self.output_state({"refletor": False})
 
