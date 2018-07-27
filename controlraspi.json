@@ -1,20 +1,20 @@
 {   
     "saidas": {
-        "aerador": 24,
+        "aerador": 4,
         "tratador": "remoto",
-        "refletor": 25,
-        "teste": 17
+        "refletor": 22,
+        "teste": 27
     },
     "entradas": {
-        "aerador": 23,
+        "aerador": 25,
         "tratador": "remoto",
         "refletor": "saida",
         "presenca_tratador": "remoto",
-        "presenca_quiosque": 27,
-        "teste": 17
+        "presenca_quiosque": 24,
+        "teste": "saida"
     },
     "sensores": {
-        "sensor_dht22": 4
+        "sensor_dht22": 18
     },
     "perifericos": {
         "tratador": {

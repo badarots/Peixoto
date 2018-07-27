@@ -1,4 +1,6 @@
+import os
 import json
+from time import sleep
 
 import datetime as dt
 from twisted.internet.defer import inlineCallbacks
@@ -12,12 +14,13 @@ from apscheduler.triggers.cron import CronTrigger
 import banco_de_dados as db
 
 # carrega arquivo de configurações
-with open('controlraspi.json') as f:
+config_path = os.environ['HOME'] + '/Peixoto/controlraspi.json'
+with open(config_path) as f:
     conf = json.load(f)
 
 output_pins = {key: val for key, val in conf["saidas"].items() if type(val) == int}
 input_pins = {key: val for key, val in conf["entradas"].items() if type(val) == int}
-estado = {x: False for x in conf["saidas"]}
+estado = {x: False for x in conf["entradas"]}
 sensor_pins = conf["sensores"]
 
 gpio = None
@@ -39,7 +42,11 @@ def configGPIO():
         gpio.setup(output_pins[pin], gpio.OUT, initial=gpio.HIGH)
     for pin in input_pins:
         gpio.setup(input_pins[pin], gpio.IN, pull_up_down=gpio.PUD_UP)
-        estado[pin] = not gpio.input(input_pins[pin])
+    for pin in estado:
+        if pin in input_pins:
+            estado[pin] = not gpio.input(input_pins[pin])
+        elif conf["entradas"][pin] == "saida":
+            estado[pin] = not gpio.input(output_pins[pin])
 
 # executa ações com os pinos
 
@@ -177,6 +184,13 @@ class Controlraspi(object):
 
     # lida com mudanças no estado dos pinos de entrada
     def input_state_thread(self, channel):
+        """essa função é chamada por uma thread que observa a mudança nos estados dos pinos
+         ela nao pode executar diretamente funcoes do twisted, entao essa funcao envia 
+         a funcao input_state para ser executado no loop do reator"""
+
+        # esse tempo de espera serve para assegurar que o estado lido é o final
+        # já que ele pode variar rapidamente e muitas vezes quando o contactor liga e desliga
+        sleep(0.1)
         self.reactor.callFromThread(self.input_state, channel)
 
     def input_state(self, channel):
@@ -187,6 +201,7 @@ class Controlraspi(object):
         
         # atualiza o estado dos pinos na memoria
         estado[modulo] = not gpio.input(channel)
+        print("input changed: {}: {}".format(modulo, estado[modulo]))
         # envia atualizacao
         self.send_update("estado")
     
