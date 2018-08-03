@@ -9,22 +9,26 @@ from sqlalchemy.pool import NullPool
 from sqlalchemy.orm import sessionmaker, scoped_session
 
 
+# a pasta de trabalho é a "dados" na mesmo diretório onde esta este arquivo
+path = os.path.dirname(os.path.realpath(__file__)) + "/dados"
+
 # cria pasta 'dados' se ela ainda não existe
-path = os.environ['HOME'] + '/Peixoto/dados'
 if not os.path.isdir(path):
     os.mkdir(path)
 
 Base = declarative_base()
+
 
 class Log(Base):
     __tablename__ = 'log'
 
     id = Column(Integer, primary_key=True)
     horario = Column(DateTime, default=datetime.now)
-    nivel = Column(String(10), default='info') # nivel de importancia: info, alerta, erro...
-    origem = Column(String(20), nullable=False) # aerador, tratador, conexao
-    evento = Column(String(20), nullable=False) # evento ocorrido na origem
-    mensagem = Column(String(300)) # mensagem adcional que acompanha o evento ex: nova agenda
+    nivel = Column(String(10), default='info')      # nivel de importancia: info, alerta, erro...
+    origem = Column(String(20), nullable=False)     # aerador, tratador, conexao
+    evento = Column(String(20), nullable=False)     # evento ocorrido na origem
+    mensagem = Column(String(300))  # mensagem adcional que acompanha o evento ex: nova agenda
+
 
 # agenda atual do aerador
 class Aerador(Base):
@@ -34,12 +38,14 @@ class Aerador(Base):
     inicio = Column(Time, nullable=False)
     fim = Column(Time, nullable=False)
 
+
 # agenda atual do tratador
 class Tratador(Base):
     __tablename__ = 'agenda_tratador'
     id = Column(Integer, primary_key=True)
     inicio = Column(Time, nullable=False)
     quantidade = Column(Float, nullable=False)
+
 
 # funções para gravação no banco de dados
 
@@ -57,21 +63,22 @@ def log(origem, evento, nivel='info', msg=None):
         texto += ', {}'.format(msg)
     print(texto)
 
+
 # salva a agenda dos atuadores
 def salva_agenda(agenda):
     # formato da agenda {'tratador':[...], 'aerador':[...]}
     # percorre os atuadores da agenda
     session = Session()
     for atuador in agenda:
-         # limpa dados antigos
+        # limpa dados antigos
         if atuador == 'tratador':
             session.query(Tratador).delete()
         elif atuador == 'aerador':
             session.query(Aerador).delete()
         else:
-            raise ValueError("atuador {} não está configurado no banco de dados".format(atuador))
             session.flush()
             session.close()
+            raise ValueError("atuador {} não está configurado no banco de dados".format(atuador))
 
         for alarme in agenda[atuador]:
             if atuador == 'tratador':
@@ -84,6 +91,7 @@ def salva_agenda(agenda):
     session.commit()
     session.flush()
     session.close()
+
 
 # recupera a agenda como um dicionário
 def recupera_agenda():
@@ -119,4 +127,4 @@ Base.metadata.bind = engine
 # scoped_session foi adcionado pq estava recebendo um erro do sqlite:
 # SQLite objects created in a thread can only be used in that same thread
 Session = scoped_session(sessionmaker(bind=engine))
-#db_session = DBSession()
+# db_session = DBSession()

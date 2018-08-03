@@ -11,6 +11,7 @@ from twisted.web.http_headers import Headers
 # import do controlador do raspi
 import controlraspi as app
 
+
 # cria servidor para recerber msg dos componentes remotos
 class Simple(resource.Resource):
     isLeaf = True
@@ -20,7 +21,7 @@ class Simple(resource.Resource):
         if self.controller:
             self.controller.remote_state(request.args)
         return b"OK"
-    
+
     # def render_POST(self, request):
     #     with open(request.args['filename'][0], 'wb') as fd:
     #         fd.write(request.content.read())
@@ -36,8 +37,8 @@ class Requests():
     def __init__(self, reactor):
         self.agent = Agent(reactor)
         self.d = None
-        
-    def get_request(self, url):    
+
+    def get_request(self, url):
         self.d = self.agent.request(
             b'GET', url,
             Headers(),
@@ -56,6 +57,7 @@ class Requests():
     def cbBody(self, body):
         print('Response body:')
         print(body)
+
 
 @inlineCallbacks
 def main(reactor, teste):
@@ -122,6 +124,7 @@ def main(reactor, teste):
     # wait forever (unless the Component raises an error)
     done = Deferred()
     yield done
+
 
 if __name__ == '__main__':
     teste = ('teste' in sys.argv)

@@ -13,9 +13,12 @@ from apscheduler.triggers.cron import CronTrigger
 # import da estrutura de metodos de escrita no banco de dados
 import banco_de_dados as db
 
+
+# encontra o diretorio atual, onde serão escrito os arquivos necessários
+path = os.path.dirname(os.path.realpath(__file__))
+
 # carrega arquivo de configurações
-config_path = os.environ['HOME'] + '/Peixoto/controlraspi.json'
-with open(config_path) as f:
+with open(path + '/controlraspi.json') as f:
     conf = json.load(f)
 
 output_pins = {key: val for key, val in conf["saidas"].items() if type(val) == int}
@@ -30,6 +33,7 @@ scheduler = TwistedScheduler()
 # configurações do scheduler
 scheduler = scheduler
 scheduler.add_jobstore('sqlalchemy', engine=db.engine)
+
 
 # configurações para o raspi
 def configGPIO():
@@ -57,7 +61,7 @@ def digitalWrite(pin, state):
     if gpio:
         # o relê liga em LOW, por isso o not na frente de state
         gpio.output(pin, not state)
-    
+
     # for key, value in pins.items():
     #     if value == pin:
     #         pin = key
@@ -123,10 +127,13 @@ class Controlraspi(object):
         else:
             modo = 'GPIO habilitados'
             configGPIO()
-            # configura interruptores 
+            # configura interruptores
             for key, val in input_pins.items():
                 if type(val) == int:
-                    gpio.add_event_detect(val, gpio.BOTH, callback=self.input_state_thread, bouncetime=300)
+                    gpio.add_event_detect(
+                        val, gpio.BOTH, callback=self.input_state_thread,
+                        bouncetime=300)
+
             self.dispositivo = u'raspi'
         self.dispositivo = u'com.' + self.dispositivo
 
@@ -180,12 +187,12 @@ class Controlraspi(object):
             db.log('conexao', 'envia status', msg='desconectado', nivel='erro')
         else:
             self.wamp_session.publish(self.dispositivo + ".componentes", msg)
-            db.log('conexao', 'envia status', msg='enviado {}: {}'.format(info, msg))        
+            db.log('conexao', 'envia status', msg='enviado {}: {}'.format(info, msg))
 
     # lida com mudanças no estado dos pinos de entrada
     def input_state_thread(self, channel):
         """essa função é chamada por uma thread que observa a mudança nos estados dos pinos
-         ela nao pode executar diretamente funcoes do twisted, entao essa funcao envia 
+         ela nao pode executar diretamente funcoes do twisted, entao essa funcao envia
          a funcao input_state para ser executado no loop do reator"""
 
         # esse tempo de espera serve para assegurar que o estado lido é o final
@@ -198,13 +205,13 @@ class Controlraspi(object):
         for key, value in input_pins.items():
             if value == channel:
                 modulo = key
-        
+
         # atualiza o estado dos pinos na memoria
         estado[modulo] = not gpio.input(channel)
         print("input changed: {}: {}".format(modulo, estado[modulo]))
         # envia atualizacao
         self.send_update("estado")
-    
+
     # lida com mudança de estado de pinos de saida
     def output_state(self, payload):
         for key in payload:
@@ -217,8 +224,8 @@ class Controlraspi(object):
         if b'tratador_presenca' in payload:
             mudanca = True
             print("Prensenca no tratador")
-            estado['presenca_tratador'] = dt.datetime.now()           
-        
+            estado['presenca_tratador'] = dt.datetime.now()
+
         if b'tratador_motor' in payload:
             mudanca = True
             print('Tratador ligado: {}'.format(payload[b'tratador_motor'][0]))
@@ -233,15 +240,15 @@ class Controlraspi(object):
             # msg = json.dumps(estado)
             # url = self.dispositivo + ".componentes"
             # yield self.wamp_session.publish(url, msg)
-            # db.log('publicacao', url, msg='enviado: ativo')                       
-            
+            # db.log('publicacao', url, msg='enviado: ativo')
 
     # liga e desliga os componentes a pedido do cliente
     def ativar(self, payload):
         try:
             msg = json.loads(payload)
         except Exception:
-            db.log('mensagem', 'ativacao', msg='Formato de msg nao suportada: ' + str(payload), nivel='alerta')
+            db.log('mensagem', 'ativacao',
+                   msg='Formato de msg nao suportada: ' + str(payload), nivel='alerta')
         else:
             db.log('mensagem', 'ativacao', msg=str(msg))
 
@@ -256,7 +263,7 @@ class Controlraspi(object):
                     self.ligar_refletor()
                 else:
                     self.desligar_refletor()
-            
+
             if 'teste' in msg:
                 estado["teste"] = msg["teste"]
 
@@ -373,8 +380,8 @@ class Controlraspi(object):
         return json.dumps(saida)
 
     def stringfyAgenda(self, agenda):
-        #formato de entrada list = [[param1, param2], ...]
-        #formato de saída str = param1, param2/ ...
+        # formato de entrada list = [[param1, param2], ...]
+        # formato de saída str = param1, param2/ ...
         saida = ""
         for evento in agenda:
             for i in range(len(evento)):
@@ -384,7 +391,7 @@ class Controlraspi(object):
                 else:
                     saida += str(item)
 
-                if i < len(evento) -1:
+                if i < len(evento) - 1:
                     saida += ', '
             saida += '/ '
         saida = saida[:-2]
@@ -423,7 +430,7 @@ class Controlraspi(object):
         # exclui alarmes antigos
         jobs = scheduler.get_jobs()
         for job in jobs:
-            if job.id == 'ligar_aerador' or job.id =='desligar_aerador':
+            if job.id == 'ligar_aerador' or job.id == 'desligar_aerador':
                 job.remove()
 
         # cria alarmes para o acionamento dos aeradores.
@@ -450,14 +457,16 @@ class Controlraspi(object):
 
         # gera novos jobs
         for i in range(len(agenda)):
-            scheduler.add_job(ligar_tratador, self.geraCronTrigger(agenda[i][0]), args=[agenda[i][1]], id='ligar_tratador_' + str(i))
+            scheduler.add_job(
+                ligar_tratador, self.geraCronTrigger(agenda[i][0]),
+                args=[agenda[i][1]], id='ligar_tratador_' + str(i))
 
-    # envelopes para atualizar o estados na memoria dos pinos de saida 
+    # envelopes para atualizar o estados na memoria dos pinos de saida
     # que nao possuem um correspondente de entrada
     def ligar_refletor(self):
         ligar_refletor()
         self.output_state({"refletor": True})
-    
+
     def desligar_refletor(self):
         desligar_refletor()
         self.output_state({"refletor": False})
