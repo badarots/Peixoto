@@ -10,6 +10,7 @@ downloads/
 log/
 dados/
 teste/
+test*
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
