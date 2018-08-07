@@ -2,15 +2,15 @@
     "saidas": {
         "aerador": 4,
         "tratador": "remoto",
-        "refletor": 22,
-        "teste": 27
+        "refletor": 27,
+        "teste": 22
     },
     "entradas": {
-        "aerador": 25,
+        "aerador": 23,
         "tratador": "remoto",
         "refletor": "saida",
         "presenca_tratador": "remoto",
-        "presenca_quiosque": 24,
+        "presenca_quiosque": 10,
         "teste": "saida"
     },
     "sensores": {
