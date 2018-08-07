@@ -286,7 +286,8 @@ class Controlraspi(object):
                 self.iniciar_tratador(msg['tratador'])
 
             if 'teste' in msg:
-                estado["teste"] = msg["teste"]
+                digitalWrite('teste', msg['teste'])
+                self.output_state({'teste': msg['teste']})
 
         # print(json.dumps(pins_state))
         # return json.dumps(pins_state)
