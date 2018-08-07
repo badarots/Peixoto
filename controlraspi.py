@@ -265,7 +265,7 @@ class Controlraspi(object):
                     self.desligar_refletor()
 
             if 'teste' in msg:
-                estado["teste"] = msg["teste"]
+                self.output_state({"teste": msg["teste"]})
 
         # print(json.dumps(pins_state))
         # return json.dumps(pins_state)
