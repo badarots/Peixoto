@@ -503,9 +503,9 @@ class Controlraspi(object):
             # converte a frequencia do motor para a da entrada de freq
             # entrada: min = 0, max = 120
             # saida: min = 500, max = 2500
-             # o 0.5 serve pora arredondar
+            # o 0.5 serve pora arredondar
             freq = int((freq - 0) * (2500 - 500) / (120 - 0) + 500 + 0.5)
-            self.mqtt_client.publish("controlador", "pin14:freq{}".format(freq))
+            self.mqtt_client.publish("controlador", "cycle:freq{}".format(freq))
 
     def geraCronTrigger(self, time):
         return CronTrigger(hour=time.hour, minute=time.minute, second=time.second)
