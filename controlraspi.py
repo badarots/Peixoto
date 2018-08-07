@@ -242,7 +242,7 @@ class Controlraspi(object):
         if b'tratador_presenca' in payload:
             mudanca = True
             print("Prensenca no tratador")
-            estado['presenca_tratador'] = dt.datetime.now()
+            estado['presenca_tratador'] = dt.datetime.now().isoformat()
 
         if b'tratador_motor' in payload:
             mudanca = True
