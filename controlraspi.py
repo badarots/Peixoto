@@ -13,6 +13,8 @@ from apscheduler.triggers.cron import CronTrigger
 # import da estrutura de metodos de escrita no banco de dados
 import banco_de_dados as db
 
+# import do biblioteca mqtt
+import paho.mqtt.client as mqtt
 
 # encontra o diretorio atual, onde serão escrito os arquivos necessários
 path = os.path.dirname(os.path.realpath(__file__))
@@ -142,6 +144,14 @@ class Controlraspi(object):
 
         scheduler.start()
 
+        # configura cliente mqtt para se comunicar com componentes remotos pela rede
+        self.mqtt_client = mqtt.Client()
+        self.mqtt_client.on_connect = self._initialize_mqtt
+        self.mqtt_client.on_message = self.mqtt_message
+
+        self.mqtt_client.connect("127.0.0.1", 1883, 60)
+        self.mqtt_client.loop_start()
+
     @inlineCallbacks
     def _initialize(self, session, details):
         # print("Connected to WAMP router")
@@ -171,6 +181,14 @@ class Controlraspi(object):
         db.log('conexao', 'desconectado', msg=reason.message, nivel='alerta')
 
         self.wamp_session = None
+
+    def _initialize_mqtt(self, client, userdata, flags, rc):
+        db.log("mqtt", "conectado", msg=str(rc))
+
+        client.subscribe("tratador")
+
+    def mqtt_message(self, client, userdata, msg):
+        db.log("mqtt", "mensagem", msg="topico: {}, msg: {}".format(msg.topic, msg.payload))
 
     # procedimento que envia agenda atual para quem requisitou
     def update_status(self, info):
@@ -263,6 +281,9 @@ class Controlraspi(object):
                     self.ligar_refletor()
                 else:
                     self.desligar_refletor()
+
+            if 'tratador' in msg:
+                self.iniciar_tratador(msg['tratador'])
 
             if 'teste' in msg:
                 estado["teste"] = msg["teste"]
@@ -470,6 +491,10 @@ class Controlraspi(object):
     def desligar_refletor(self):
         desligar_refletor()
         self.output_state({"refletor": False})
+
+    def iniciar_tratador(self, freq):
+        self.mqtt_client.publish("controlador", "pin2:state")
+        print(freq)
 
     def geraCronTrigger(self, time):
         return CronTrigger(hour=time.hour, minute=time.minute, second=time.second)
