@@ -8,6 +8,7 @@ from twisted.internet.task import react
 # import do controlador do raspi
 import controlraspi as app
 
+
 @inlineCallbacks
 def main(reactor, teste):
     wsurl = u"ws://localhost/ws"

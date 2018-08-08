@@ -4,6 +4,7 @@ from time import sleep
 
 import datetime as dt
 from twisted.internet.defer import inlineCallbacks
+from twisted.internet.task import LoopingCall
 
 # import para o APScheler
 from apscheduler.schedulers.twisted import TwistedScheduler
@@ -12,6 +13,9 @@ from apscheduler.triggers.cron import CronTrigger
 
 # import da estrutura de metodos de escrita no banco de dados
 import banco_de_dados as db
+
+# import do sensor dht de temp e umidade
+import read_dht
 
 # import do biblioteca mqtt
 import paho.mqtt.client as mqtt
@@ -149,8 +153,15 @@ class Controlraspi(object):
         self.mqtt_client.on_connect = self._initialize_mqtt
         self.mqtt_client.on_message = self.mqtt_message
 
-        self.mqtt_client.connect("127.0.0.1", 1883, 60)
-        self.mqtt_client.loop_start()
+        if not teste:
+            self.mqtt_client.connect("127.0.0.1", 1883, 60)
+            self.mqtt_client.loop_start()
+
+        # de a cada meia hora o sensor dht, temperatura e umidade
+        if not teste and "dht22" in conf["sensores"]:
+            pin = conf["sensores"]["dht22"]
+            dht = LoopingCall(read_dht.read_threaded, '22', pin, None)
+            dht.start(5)
 
     @inlineCallbacks
     def _initialize(self, session, details):

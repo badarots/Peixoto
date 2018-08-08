@@ -14,7 +14,7 @@
         "teste": "saida"
     },
     "sensores": {
-        "sensor_dht22": 18
+        "dht22": 18
     },
     "perifericos": {
         "tratador": {
