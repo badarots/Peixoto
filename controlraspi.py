@@ -157,11 +157,11 @@ class Controlraspi(object):
             self.mqtt_client.connect("127.0.0.1", 1883, 60)
             self.mqtt_client.loop_start()
 
-        # de a cada meia hora o sensor dht, temperatura e umidade
+        # lê sensor dht a cada meia hora: temperatura e umidade
         if not teste and "dht22" in conf["sensores"]:
             pin = conf["sensores"]["dht22"]
             dht = LoopingCall(read_dht.read_threaded, '22', pin, db)
-            dht.start(5)
+            dht.start(1800)
 
     @inlineCallbacks
     def _initialize(self, session, details):
