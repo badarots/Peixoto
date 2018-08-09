@@ -160,7 +160,7 @@ class Controlraspi(object):
         # de a cada meia hora o sensor dht, temperatura e umidade
         if not teste and "dht22" in conf["sensores"]:
             pin = conf["sensores"]["dht22"]
-            dht = LoopingCall(read_dht.read_threaded, '22', pin, None)
+            dht = LoopingCall(read_dht.read_threaded, '22', pin, db)
             dht.start(5)
 
     @inlineCallbacks

@@ -40,6 +40,10 @@ def main(reactor, teste):
         }
     )
 
+    # When not using run() we also must start logging ourselves.
+    import txaio
+    txaio.start_logging(level='info')
+
     # cria app principal
     controller = app.Controlraspi(component, reactor, teste=teste)
 
@@ -48,10 +52,6 @@ def main(reactor, teste):
     # The Deferred it returns fires when the component is "completed"
     # (or errbacks on any problems).
     comp_d = controller._wamp.start(reactor)
-
-    # When not using run() we also must start logging ourselves.
-    import txaio
-    txaio.start_logging(level='info')
 
     # If the Component raises an exception we want to exit. Note that
     # things like failing to connect will be swallowed by the

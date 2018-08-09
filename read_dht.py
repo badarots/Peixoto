@@ -1,13 +1,15 @@
 import sys
 from time import sleep
 import threading
-# import Adafruit_DHT
+import Adafruit_DHT
 
 sensor_args = { '11': Adafruit_DHT.DHT11,
                 '22': Adafruit_DHT.DHT22,
                 '2302': Adafruit_DHT.AM2302 }
 
-def read(sensor, pin, logger=None):
+t = None
+
+def read(sensor, pin, db=None):
     if sensor not in sensor_args:
         print("Sensor {} não suportado".format(sensor))
         return
@@ -24,14 +26,22 @@ def read(sensor, pin, logger=None):
             humidity = temperature = None
 
         sleep(5)
-    if logger is None:
-        print('Temp={0:0.1f}*  Humidity={1:0.1f}%'.format(humidity, temperature))
-    else:
-        print('Log -- Temp={0:0.1f}*  Humidity={1:0.1f}%'.format(humidity, temperature))
+    if db is not None:
+        db.salva_dht(temperature, humidity)
 
-def read_threaded(sensor, pin, logger=None):
-    t = threading.Thread(target=read, args=(sensor, pin, logger))
-    t.start()
+    if temperature:
+        temperature = "{0:0.1f}".format(temperature)
+    if humidity:
+        humidity = "{0:0.1f}".format(humidity)
+    print('Temp={}*  Humidity={}%'.format(temperature, humidity))
+
+def read_threaded(sensor, pin, db=None):
+    global t
+    print("Leitura do dht iniciada")
+    if t is None or not t.is_alive():
+        t = threading.Thread(target=read, args=(sensor, pin, db))
+        t.setDaemon(True)
+        t.start()
 
 
 if __name__ == "__main__":
