@@ -161,7 +161,7 @@ class Controlraspi(object):
         if not teste and "dht22" in conf["sensores"]:
             pin = conf["sensores"]["dht22"]
             dht = LoopingCall(read_dht.read_threaded, '22', pin, db)
-            dht.start(1800)
+            dht.start(1800, now=True)
 
     @inlineCallbacks
     def _initialize(self, session, details):
@@ -513,10 +513,10 @@ class Controlraspi(object):
             db.log("ativar", "ativar tratador", msg=str(e), nivel="alerta")
         else:
             # converte a frequencia do motor para a da entrada de freq
-            # entrada: min = 0, max = 120
+            # entrada: min = 3, max = 120
             # saida: min = 500, max = 2500
             # o 0.5 serve pora arredondar
-            freq = int((freq - 0) * (2500 - 500) / (120 - 0) + 500 + 0.5)
+            freq = int((freq - 3) * (2500 - 500) / (120 - 3) + 500 + 0.5)
             self.mqtt_client.publish("controlador", "cycle:freq{}".format(freq))
 
     def geraCronTrigger(self, time):

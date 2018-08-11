@@ -10,12 +10,15 @@ sensor_args = { '11': Adafruit_DHT.DHT11,
 t = None
 
 def read(sensor, pin, db=None):
+    '''Tenta fazer a leitura 100 vezes, com um intervalo de 2 s entra tentativas,
+    até desistir e jogar a toalha. Depois grava o resultado no banco de dados.'''
+
     if sensor not in sensor_args:
         print("Sensor {} não suportado".format(sensor))
         return
 
-    for i in range(5):
-        humidity, temperature = Adafruit_DHT.read_retry(sensor_args[sensor], pin)
+    for i in range(100):
+        humidity, temperature = Adafruit_DHT.read(sensor_args[sensor], pin)
 
         valid_humidity = humidity is not None and 10 <= humidity <= 100
         valid_temperature = temperature is not None and -5 <= temperature <= 50
@@ -25,7 +28,7 @@ def read(sensor, pin, db=None):
         else:
             humidity = temperature = None
 
-        sleep(5)
+        sleep(2)
     if db is not None:
         db.salva_dht(temperature, humidity)
 
