@@ -99,15 +99,6 @@ def salva_agenda(agenda):
     session.close()
 
 
-def salva_dht(temperature, humidity):
-    entrada = DHT22(temperature=temperature, humidity=humidity)
-    session = Session()
-    session.add(entrada)
-    session.commit()
-    session.flush()
-    session.close()
-
-
 # recupera a agenda como um dicionário
 def recupera_agenda():
     session = Session()
@@ -127,6 +118,30 @@ def recupera_agenda():
     session.close()
 
     return agenda
+
+
+def salva_dht(temperature, humidity):
+    entrada = DHT22(temperature=temperature, humidity=humidity)
+    session = Session()
+    session.add(entrada)
+    session.commit()
+    session.flush()
+    session.close()
+
+
+def ultimo_dht():
+    session = Session()
+
+    row = session.query(DHT22).order_by(DHT22.id.desc()).\
+        filter(DHT22.temperature is not None, DHT22.humidity is not None).first()
+
+    payload = { 'hora': row.tempo, 'ar_temperatura': row.temperature,
+                'ar_umidade': row.humidity}
+
+    session.flush()
+    session.close()
+
+    return payload
 
 
 url = 'sqlite:///{}/arquivo.db'.format(path)

@@ -29,6 +29,9 @@ def read(sensor, pin, db=None):
             humidity = temperature = None
 
         sleep(2)
+    temperature = round(temperature, 1)
+    humidity = round(humidity, 1)
+    
     if db is not None:
         db.salva_dht(temperature, humidity)
 

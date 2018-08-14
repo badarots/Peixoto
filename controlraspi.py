@@ -14,9 +14,6 @@ from apscheduler.triggers.cron import CronTrigger
 # import da estrutura de metodos de escrita no banco de dados
 import banco_de_dados as db
 
-# import do sensor dht de temp e umidade
-import read_dht
-
 # import do biblioteca mqtt
 import paho.mqtt.client as mqtt
 
@@ -57,6 +54,14 @@ def configGPIO():
             estado[pin] = not gpio.input(input_pins[pin])
         elif conf["entradas"][pin] == "saida":
             estado[pin] = not gpio.input(output_pins[pin])
+
+def configDHT():
+    # import do sensor dht de temp e umidade
+    import read_dht
+
+    pin = conf["sensores"]["dht22"]
+    dht = LoopingCall(read_dht.read_threaded, '22', pin, db)
+    dht.start(1800, now=True)
 
 # executa ações com os pinos
 
@@ -110,6 +115,17 @@ def exit(exception):
         gpio.cleanup()
 
 
+class DateTimeEncoder(json.JSONEncoder):
+    '''Regra que converte datetime em string nos jsons'''
+
+    def default(self, o):
+        if isinstance(o, dt.datetime):
+            o = o.replace(microsecond=0)
+            return o.isoformat(' ')
+
+        return super().default(o)
+
+
 class Controlraspi(object):
     """
     """
@@ -159,9 +175,7 @@ class Controlraspi(object):
 
         # lê sensor dht a cada meia hora: temperatura e umidade
         if not teste and "dht22" in conf["sensores"]:
-            pin = conf["sensores"]["dht22"]
-            dht = LoopingCall(read_dht.read_threaded, '22', pin, db)
-            dht.start(1800, now=True)
+            configDHT()
 
     @inlineCallbacks
     def _initialize(self, session, details):
@@ -208,6 +222,8 @@ class Controlraspi(object):
             msg = self.dumpMsg(self.agenda)
         elif info == "estado":
             msg = json.dumps(estado)
+        elif info == "sensores":
+            msg = json.dumps(db.ultimo_dht(), cls=DateTimeEncoder)
         return msg
 
     def send_update(self, info):
@@ -479,7 +495,7 @@ class Controlraspi(object):
         trigger = OrTrigger(lista_alarmes)
         scheduler.add_job(desligar_aerador, trigger, id='desligar_aerador')
 
-    # agenda do Tratador tem o format [[hora (datetime), ração (int)], ...]
+    # agenda do Tratador tem o formato [[hora (datetime), ração (int)], ...]
     def attTratador(self, agenda):
 
         # exclui jobs antigos
