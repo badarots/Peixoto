@@ -11,7 +11,6 @@ log/
 dados/
 teste/
 test*
-web/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
