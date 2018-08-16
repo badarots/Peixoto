@@ -62,8 +62,6 @@ Instalando e atualizando pip
 
 ### Instalando pypy (não está funcionando)
 
-    [referencia](https://github.com/Nikolay-Kha/PyCNC/issues/20)
-
 Pacotes necessários:
 
     sudo apt install libssl-dev libffi-dev
@@ -79,6 +77,8 @@ Intalando pip
 
     pypy -m ensurepip
     pypy -m pip install -U pip
+
+[referencia](https://github.com/Nikolay-Kha/PyCNC/issues/20)
 
 ### PlatformIO no raspberry
 
