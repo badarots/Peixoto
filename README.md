@@ -119,7 +119,7 @@ Se pretente usar um broker WAMP remoto basta instalar as dependências de ``requ
 
 ### Inicialização manual
 
-Inicialize o ``crossbar`` e rode o script ``peixoto.py`` com o interpretador python dedicado
+Inicialize o ``crossbar`` e rode o script ``peixoto.py`` com o interpretador python dedicado.
 
     cd Peixoto
     crossbar start &
@@ -127,15 +127,15 @@ Inicialize o ``crossbar`` e rode o script ``peixoto.py`` com o interpretador pyt
 
 ### Opções
 
-Para rodar em modp de teste (sem o controle dos GPIOs) use o argumento ``teste``
+Para rodar em modo de teste (sem o controle dos GPIOs) use o argumento ``teste``
 
     pythond peixoto.py teste
 
-Para se conectar em um broker WAMP remoto use o argumento ``remoto``
+Para se conectar em um broker WAMP remoto use o argumento ``remoto``.
 
     pythond peixoto.py remoto
 
-### Inicialização atomática
+### Inicialização automática
 
 Para habilitar a inicialização automática do crossbar e do peixoto copie os arquivos ``crossbar.service`` e ``peixoto.service`` dentro da pasta ``services`` para:
 
