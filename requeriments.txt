@@ -4,3 +4,5 @@ pyopenssl
 service_identity
 apscheduler
 sqlalchemy
+paho-mqtt
+Adafruit_DHT

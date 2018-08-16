@@ -46,6 +46,12 @@ class Tratador(Base):
     inicio = Column(Time, nullable=False)
     quantidade = Column(Float, nullable=False)
 
+class DHT22(Base):
+    __tablename__ = 'sensor_dht22'
+    id = Column(Integer, primary_key=True)
+    tempo = Column(DateTime, default=datetime.now)
+    temperature = Column(Float)
+    humidity = Column(Float)
 
 # funções para gravação no banco de dados
 
@@ -112,6 +118,30 @@ def recupera_agenda():
     session.close()
 
     return agenda
+
+
+def salva_dht(temperature, humidity):
+    entrada = DHT22(temperature=temperature, humidity=humidity)
+    session = Session()
+    session.add(entrada)
+    session.commit()
+    session.flush()
+    session.close()
+
+
+def ultimo_dht():
+    session = Session()
+
+    row = session.query(DHT22).order_by(DHT22.id.desc()).\
+        filter(DHT22.temperature is not None, DHT22.humidity is not None).first()
+
+    payload = { 'hora': row.tempo, 'ar_temperatura': row.temperature,
+                'ar_umidade': row.humidity}
+
+    session.flush()
+    session.close()
+
+    return payload
 
 
 url = 'sqlite:///{}/arquivo.db'.format(path)

@@ -4,6 +4,7 @@ from time import sleep
 
 import datetime as dt
 from twisted.internet.defer import inlineCallbacks
+from twisted.internet.task import LoopingCall
 
 # import para o APScheler
 from apscheduler.schedulers.twisted import TwistedScheduler
@@ -13,6 +14,8 @@ from apscheduler.triggers.cron import CronTrigger
 # import da estrutura de metodos de escrita no banco de dados
 import banco_de_dados as db
 
+# import do biblioteca mqtt
+import paho.mqtt.client as mqtt
 
 # encontra o diretorio atual, onde serão escrito os arquivos necessários
 path = os.path.dirname(os.path.realpath(__file__))
@@ -51,6 +54,14 @@ def configGPIO():
             estado[pin] = not gpio.input(input_pins[pin])
         elif conf["entradas"][pin] == "saida":
             estado[pin] = not gpio.input(output_pins[pin])
+
+def configDHT():
+    # import do sensor dht de temp e umidade
+    import read_dht
+
+    pin = conf["sensores"]["dht22"]
+    dht = LoopingCall(read_dht.read_threaded, '22', pin, db)
+    dht.start(1800, now=True)
 
 # executa ações com os pinos
 
@@ -104,6 +115,17 @@ def exit(exception):
         gpio.cleanup()
 
 
+class DateTimeEncoder(json.JSONEncoder):
+    '''Regra que converte datetime em string nos jsons'''
+
+    def default(self, o):
+        if isinstance(o, dt.datetime):
+            o = o.replace(microsecond=0)
+            return o.isoformat(' ')
+
+        return super().default(o)
+
+
 class Controlraspi(object):
     """
     """
@@ -142,6 +164,19 @@ class Controlraspi(object):
 
         scheduler.start()
 
+        # configura cliente mqtt para se comunicar com componentes remotos pela rede
+        self.mqtt_client = mqtt.Client()
+        self.mqtt_client.on_connect = self._initialize_mqtt
+        self.mqtt_client.on_message = self.mqtt_message
+
+        if not teste:
+            self.mqtt_client.connect("127.0.0.1", 1883, 60)
+            self.mqtt_client.loop_start()
+
+        # lê sensor dht a cada meia hora: temperatura e umidade
+        if not teste and "dht22" in conf["sensores"]:
+            configDHT()
+
     @inlineCallbacks
     def _initialize(self, session, details):
         # print("Connected to WAMP router")
@@ -172,6 +207,14 @@ class Controlraspi(object):
 
         self.wamp_session = None
 
+    def _initialize_mqtt(self, client, userdata, flags, rc):
+        db.log("mqtt", "conectado", msg=str(rc))
+
+        client.subscribe("tratador")
+
+    def mqtt_message(self, client, userdata, msg):
+        db.log("mqtt", "mensagem", msg="topico: {}, msg: {}".format(msg.topic, msg.payload))
+
     # procedimento que envia agenda atual para quem requisitou
     def update_status(self, info):
         msg = None
@@ -179,6 +222,8 @@ class Controlraspi(object):
             msg = self.dumpMsg(self.agenda)
         elif info == "estado":
             msg = json.dumps(estado)
+        elif info == "sensores":
+            msg = json.dumps(db.ultimo_dht(), cls=DateTimeEncoder)
         return msg
 
     def send_update(self, info):
@@ -264,8 +309,12 @@ class Controlraspi(object):
                 else:
                     self.desligar_refletor()
 
+            if 'tratador' in msg:
+                self.iniciar_tratador(msg['tratador'])
+
             if 'teste' in msg:
-                self.output_state({"teste": msg["teste"]})
+                digitalWrite('teste', msg['teste'])
+                self.output_state({'teste': msg['teste']})
 
         # print(json.dumps(pins_state))
         # return json.dumps(pins_state)
@@ -446,7 +495,7 @@ class Controlraspi(object):
         trigger = OrTrigger(lista_alarmes)
         scheduler.add_job(desligar_aerador, trigger, id='desligar_aerador')
 
-    # agenda do Tratador tem o format [[hora (datetime), ração (int)], ...]
+    # agenda do Tratador tem o formato [[hora (datetime), ração (int)], ...]
     def attTratador(self, agenda):
 
         # exclui jobs antigos
@@ -470,6 +519,21 @@ class Controlraspi(object):
     def desligar_refletor(self):
         desligar_refletor()
         self.output_state({"refletor": False})
+
+    def iniciar_tratador(self, freq):
+        try:
+            freq = float(freq)
+            if not 10 <= freq <= 120:
+                raise ValueError("Frequencia {} fora da faixa permita: 10-120".format(freq))
+        except Exception as e:
+            db.log("ativar", "ativar tratador", msg=str(e), nivel="alerta")
+        else:
+            # converte a frequencia do motor para a da entrada de freq
+            # entrada: min = 3, max = 120
+            # saida: min = 500, max = 2500
+            # o 0.5 serve pora arredondar
+            freq = int((freq - 3) * (2500 - 500) / (120 - 3) + 500 + 0.5)
+            self.mqtt_client.publish("controlador", "cycle:freq{}".format(freq))
 
     def geraCronTrigger(self, time):
         return CronTrigger(hour=time.hour, minute=time.minute, second=time.second)
