@@ -127,11 +127,11 @@ Inicialize o ``crossbar`` e rode o script ``peixoto.py`` com o interpretador pyt
 
 ### Opções
 
-Para rodar em mode de teste (sem o controle dos GPIOs) use o argumento ``teste``
+Para rodar em modp de teste (sem o controle dos GPIOs) use o argumento ``teste``
 
     pythond peixoto.py teste
 
-Para se conectar em um WAMP broker remoto use o argumento ``remoto``
+Para se conectar em um broker WAMP remoto use o argumento ``remoto``
 
     pythond peixoto.py remoto
 
@@ -143,5 +143,5 @@ Para habilitar a inicialização automática do crossbar e do peixoto copie os a
 
 E execute:
 
-    sudo systemctl enable crossbar
-    sudo systemctl enable peixoto
+    sudo systemctl enable crossbar && sudo systemctl start crossbar
+    sudo systemctl enable peixoto && sudo systemctl start peixoto
