@@ -26,6 +26,8 @@ with open(path + '/controlraspi.json') as f:
 
 output_pins = {key: val for key, val in conf["saidas"].items() if type(val) == int}
 input_pins = {key: val for key, val in conf["entradas"].items() if type(val) == int}
+habilitar_pins = {'aerador': 8}
+
 estado = {x: False for x in conf["entradas"]}
 sensor_pins = conf["sensores"]
 
@@ -47,13 +49,18 @@ def configGPIO():
     gpio.setmode(gpio.BCM)
     for pin in output_pins:
         gpio.setup(output_pins[pin], gpio.OUT, initial=gpio.HIGH)
+
     for pin in input_pins:
         gpio.setup(input_pins[pin], gpio.IN, pull_up_down=gpio.PUD_UP)
+
     for pin in estado:
         if pin in input_pins:
             estado[pin] = not gpio.input(input_pins[pin])
         elif conf["entradas"][pin] == "saida":
             estado[pin] = not gpio.input(output_pins[pin])
+
+    for pin in habilitar_pins.values():
+        gpio.setup(output_pins[pin], gpio.OUT, initial=gpio.LOW)
 
 def configDHT():
     # import do sensor dht de temp e umidade
@@ -131,6 +138,8 @@ class Controlraspi(object):
     """
 
     def __init__(self, wamp_comp, reactor, teste=False):
+        estado["controlador"] = True
+
         self.agenda = db.recupera_agenda()
 
         # wamp config
@@ -150,7 +159,7 @@ class Controlraspi(object):
             modo = 'GPIO habilitados'
             configGPIO()
             # configura interruptores
-            for key, val in input_pins.items():
+            for val in input_pins.values():
                 if type(val) == int:
                     gpio.add_event_detect(
                         val, gpio.BOTH, callback=self.input_state_thread,
@@ -169,6 +178,7 @@ class Controlraspi(object):
         self.mqtt_client.on_connect = self._initialize_mqtt
         self.mqtt_client.on_message = self.mqtt_message
 
+        self.mqtt_client = None
         if not teste:
             self.mqtt_client.connect("127.0.0.1", 1883, 60)
             self.mqtt_client.loop_start()
@@ -208,12 +218,19 @@ class Controlraspi(object):
         self.wamp_session = None
 
     def _initialize_mqtt(self, client, userdata, flags, rc):
-        db.log("mqtt", "conectado", msg=str(rc))
-
         client.subscribe("tratador")
+
+        mqtt_status = LoopingCall(self.mqtt_sendstatus)
+        mqtt_status.start(300, now=True)
+
+        db.log("mqtt", "conectado", msg=str(rc))
 
     def mqtt_message(self, client, userdata, msg):
         db.log("mqtt", "mensagem", msg="topico: {}, msg: {}".format(msg.topic, msg.payload))
+
+    def mqtt_sendstatus(self):
+        status = 'on' if (estado["controller"]) else 'off'
+        self.mqtt_client.publish("controlador", status)
 
     # procedimento que envia agenda atual para quem requisitou
     def update_status(self, info):
@@ -315,6 +332,15 @@ class Controlraspi(object):
             if 'teste' in msg:
                 digitalWrite('teste', msg['teste'])
                 self.output_state({'teste': msg['teste']})
+
+            if 'controlador' in msg:
+                estado['controlador'] = msg['controlador']
+
+                self.mqtt_sendstatus() if self.mqtt_client else None
+                for pin in habilitar_pins.values():
+                    digitalWrite(pin, estado['controlador'])
+
+                self.send_update('estado')
 
         # print(json.dumps(pins_state))
         # return json.dumps(pins_state)
