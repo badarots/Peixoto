@@ -119,7 +119,7 @@ Se pretente usar um broker WAMP remoto basta instalar as dependências de ``requ
 
 ### Inicialização manual
 
-Inicialize o ``crossbar`` e rode o script ``peixoto.py`` com o interpretador python dedicado. WAMP
+Inicialize o ``crossbar`` e rode o script ``peixoto.py`` com o interpretador python dedicado.
 
     cd Peixoto
     crossbar start &
