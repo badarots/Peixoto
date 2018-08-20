@@ -39,343 +39,268 @@ scheduler = TwistedScheduler()
 scheduler = scheduler
 scheduler.add_jobstore('sqlalchemy', engine=db.engine)
 
+# variáveis globais
+dispositivo = None
+agenda = None
 
-# configurações para o raspi
-def configGPIO():
-    import RPi.GPIO as GPIO
-    global gpio
-    gpio = GPIO
+wamp_session = None
+wamp_comp = None
 
-    gpio.setmode(gpio.BCM)
-    for pin in output_pins:
-        gpio.setup(output_pins[pin], gpio.OUT, initial=gpio.HIGH)
+reactor = None
 
-    for pin in input_pins:
-        gpio.setup(input_pins[pin], gpio.IN, pull_up_down=gpio.PUD_UP)
-
-    for pin in estado:
-        if pin in input_pins:
-            estado[pin] = not gpio.input(input_pins[pin])
-        elif conf["entradas"][pin] == "saida":
-            estado[pin] = not gpio.input(output_pins[pin])
-
-    for pin in habilitar_pins.values():
-        gpio.setup(output_pins[pin], gpio.OUT, initial=gpio.LOW)
-
-def configDHT():
-    # import do sensor dht de temp e umidade
-    import read_dht
-
-    pin = conf["sensores"]["dht22"]
-    dht = LoopingCall(read_dht.read_threaded, '22', pin, db)
-    dht.start(1800, now=True)
-
-# executa ações com os pinos
-
-def digitalWrite(pin, state):
-    if type(pin) == str:
-        pin = output_pins[pin]
-
-    if gpio:
-        # o relê liga em LOW, por isso o not na frente de state
-        gpio.output(pin, not state)
-
-    # for key, value in pins.items():
-    #     if value == pin:
-    #         pin = key
-    # # atualiza o estado dos pinos na memoria
-    # pins_state[pin] = state
-
-def ligar_tratador(quantidade):
-    # print('Tratador: ligado', racao)
-    db.log('tratador', 'ligado', msg='quantidade: ' + str(quantidade))
-    # digitalWrite(pins['tratador'], True)
-
-    # scheduler.add_job(desligar_tratador, 'date', run_date=dt.datetime.now() + dt.timedelta(seconds=2))
-
-# def desligar_tratador():
-#     # print('Tratador: fim do pulso')
-#     db.log('tratador', 'fim do pulso')
-#     digitalWrite(pins['tratador'], False)
-
-def ligar_aerador():
-    db.log('aerador', 'ligado')
-    digitalWrite(output_pins['aerador'], True)
-
-def desligar_aerador():
-    db.log('aerador', 'desligado')
-    digitalWrite(output_pins['aerador'], False)
-
-def ligar_refletor():
-    db.log('refletor', 'ligado')
-    digitalWrite(output_pins['refletor'], True)
-
-def desligar_refletor():
-    db.log('refletor', 'desligado')
-    digitalWrite(output_pins['refletor'], False)
-
-def exit(exception):
-    # print("Desligamento: limpando pinos")
-    db.log('app', 'desligamento', msg=str(exception), nivel='erro')
-    db.log('app', 'desligamento', msg='limpando pinos')
-    if gpio:
-        gpio.cleanup()
+mqtt_client = None
 
 
-class DateTimeEncoder(json.JSONEncoder):
-    '''Regra que converte datetime em string nos jsons'''
+def start(wamp, reactor, teste=False):
+    global dispositivo, agenda, wamp_comp, wamp_session, mqtt_client, reactor
 
-    def default(self, o):
-        if isinstance(o, dt.datetime):
-            o = o.replace(microsecond=0)
-            return o.isoformat(' ')
+    estado["controlador"] = True
 
-        return super().default(o)
+    agenda = db.recupera_agenda()
+
+    # wamp config
+    wamp_session = None  # "None" while we're disconnected from WAMP router
+    wamp_comp = wamp
+    # associate ourselves with WAMP session lifecycle
+    wamp_comp.on('join', wamp_initialize)
+    wamp_comp.on('leave', wamp_uninitialize)
+
+    reactor = reactor
+
+    # configura pinos do raspberry
+    if teste:
+        modo = 'Rodando em modo de teste, GPIO desbilitados'
+        dispositivo = u'teste'
+    else:
+        modo = 'GPIO habilitados'
+        configGPIO()
+        # configura interruptores
+        for val in input_pins.values():
+            if type(val) == int:
+                gpio.add_event_detect(
+                    val, gpio.BOTH, callback=input_state_thread,
+                    bouncetime=300)
+
+        dispositivo = u'raspi'
+    dispositivo = u'com.' + dispositivo
+
+    wamp_comp._transports
+    db.log('app', u'inicialização', msg=modo)
+
+    scheduler.start()
+
+    # configura cliente mqtt para se comunicar com componentes remotos pela rede
+    mqtt_client = mqtt.Client()
+    mqtt_client.on_connect = mqtt_initialize
+    mqtt_client.on_message = mqtt_message
+
+    mqtt_client = None
+    if not teste:
+        mqtt_client.connect("127.0.0.1", 1883, 60)
+        mqtt_client.loop_start()
+
+    # lê sensor dht a cada meia hora: temperatura e umidade
+    if not teste and "dht22" in conf["sensores"]:
+        configDHT()
 
 
-class Controlraspi(object):
-    """
-    """
+@inlineCallbacks
+def wamp_initialize(session, details):
+    global wamp_session
 
-    def __init__(self, wamp_comp, reactor, teste=False):
-        estado["controlador"] = True
+    # print("Connected to WAMP router")
+    db.log('conexao', 'conectado')
+    wamp_session = session
 
-        self.agenda = db.recupera_agenda()
+    # reseta valores de reconexão
+    # está mal implementado, se houver mais de um transport não saberei
+    # reseta. tenho que encontrar o transporte em uso na conexão
+    print("resetando valores de reconexão")
+    wamp_comp._transports[0].reset()
 
-        # wamp config
-        self.wamp_session = None  # "None" while we're disconnected from WAMP router
-        self._wamp = wamp_comp
-        # associate ourselves with WAMP session lifecycle
-        self._wamp.on('join', self._initialize)
-        self._wamp.on('leave', self._uninitialize)
+    try:
+        yield session.register(atualizar, dispositivo + u'.atualizar')
+        yield session.register(update_status, dispositivo + u'.status')
+        yield session.register(ativar, dispositivo + u'.ativar')
 
-        self.reactor = reactor
+        # print("procedimentos registrados")
+        db.log('conexao', 'registro', msg='procedimentos registrados')
+    except Exception as e:
+        # print("Erro: não for possível registrar os procedimentos: {0}".format(e))
+        db.log('conexao', 'registro', msg=str(e), nivel='erro')
 
-        # configura pinos do raspberry
-        if teste:
-            modo = 'Rodando em modo de teste, GPIO desbilitados'
-            self.dispositivo = u'teste'
+
+def wamp_uninitialize(session, reason):
+    global wamp_session
+
+    # print(session, reason)
+    # print("Lost WAMP connection")
+    db.log('conexao', 'desconectado', msg=reason.message, nivel='alerta')
+
+    wamp_session = None
+
+
+def mqtt_initialize(client, userdata, flags, rc):
+    client.subscribe("tratador")
+
+    mqtt_status = LoopingCall(mqtt_sendstatus)
+    mqtt_status.start(300, now=True)
+
+    db.log("mqtt", "conectado", msg=str(rc))
+
+
+def mqtt_message(client, userdata, msg):
+    db.log("mqtt", "mensagem", msg="topico: {}, msg: {}".format(msg.topic, msg.payload))
+
+
+def mqtt_sendstatus():
+    status = 'on' if (estado["controller"]) else 'off'
+    mqtt_client.publish("controlador", status)
+
+
+# procedimento que envia agenda atual para quem requisitou
+def update_status(info):
+
+    def dumpMsg(entrada):
+        # formato de entrada {'atuador': [[param1, param2], ...], ...}
+        # formato de saida {'atuador': {'0': [param1, param2], ...}, ...}
+        saida = {}
+        for atuador in entrada:
+            agenda = entrada[atuador]
+            atuador_saida = {}
+            for i in range(len(agenda)):
+                evento = agenda[i]
+                a = atuador_saida[str(i)] = []
+                for v in evento:
+                    if type(v) == float:
+                        a.append(str(v))
+                    elif type(v) == dt.time:
+                        a.append(v.strftime('%H:%M'))
+
+            saida[atuador] = atuador_saida
+        return json.dumps(saida)
+
+    msg = None
+    if info == "agenda":
+        msg = dumpMsg(agenda)
+    elif info == "estado":
+        msg = json.dumps(estado)
+    elif info == "sensores":
+        msg = json.dumps(db.ultimo_dht(), cls=DateTimeEncoder)
+    return msg
+
+
+def send_update(info):
+    msg = update_status("estado")
+    if wamp_session is None:
+        db.log('conexao', 'envia status', msg='desconectado', nivel='erro')
+    else:
+        wamp_session.publish(dispositivo + ".componentes", msg)
+        db.log('conexao', 'envia status', msg='enviado {}: {}'.format(info, msg))
+
+
+# lida com mudanças no estado dos pinos de entrada
+def input_state_thread(channel):
+    """essa função é chamada por uma thread que observa a mudança nos estados dos pinos
+     ela nao pode executar diretamente funcoes do twisted, entao essa funcao envia
+     a funcao input_state para ser executado no loop do reator"""
+
+    # esse tempo de espera serve para assegurar que o estado lido é o final
+    # já que ele pode variar rapidamente e muitas vezes quando o contactor liga e desliga
+    sleep(0.1)
+    reactor.callFromThread(input_state, channel)
+
+def input_state(channel):
+    modulo = None
+    for key, value in input_pins.items():
+        if value == channel:
+            modulo = key
+
+    # atualiza o estado dos pinos na memoria
+    estado[modulo] = not gpio.input(channel)
+    print("input changed: {}: {}".format(modulo, estado[modulo]))
+    # envia atualizacao
+    send_update("estado")
+
+
+# lida com mudança de estado de pinos de saida
+def output_state(payload):
+    for key in payload:
+        estado[key] = payload[key]
+    send_update("estado")
+
+
+# lida com as mudancas de estado de modulos remotos (obsoleto)
+def remote_state(payload):
+    mudanca = False
+    if b'tratador_presenca' in payload:
+        mudanca = True
+        print("Prensenca no tratador")
+        estado['presenca_tratador'] = dt.datetime.now().isoformat()
+
+    if b'tratador_motor' in payload:
+        mudanca = True
+        print('Tratador ligado: {}'.format(payload[b'tratador_motor'][0]))
+        if payload[b'tratador_motor'][0] == b'true':
+            estado['tratador'] = True
         else:
-            modo = 'GPIO habilitados'
-            configGPIO()
-            # configura interruptores
-            for val in input_pins.values():
-                if type(val) == int:
-                    gpio.add_event_detect(
-                        val, gpio.BOTH, callback=self.input_state_thread,
-                        bouncetime=300)
+            estado['tratador'] = False
 
-            self.dispositivo = u'raspi'
-        self.dispositivo = u'com.' + self.dispositivo
+    # envia novo status de dispositvos para
+    if mudanca and wamp_session:
+        send_update("estado")
+        # msg = json.dumps(estado)
+        # url = dispositivo + ".componentes"
+        # yield wamp_session.publish(url, msg)
+        # db.log('publicacao', url, msg='enviado: ativo')
 
-        wamp_comp._transports
-        db.log('app', u'inicialização', msg=modo)
 
-        scheduler.start()
+# liga e desliga os componentes a pedido do cliente
+def ativar(payload):
+    try:
+        msg = json.loads(payload)
+    except Exception:
+        db.log('mensagem', 'ativacao',
+               msg='Formato de msg nao suportada: ' + str(payload), nivel='alerta')
+    else:
+        db.log('mensagem', 'ativacao', msg=str(msg))
 
-        # configura cliente mqtt para se comunicar com componentes remotos pela rede
-        self.mqtt_client = mqtt.Client()
-        self.mqtt_client.on_connect = self._initialize_mqtt
-        self.mqtt_client.on_message = self.mqtt_message
-
-        self.mqtt_client = None
-        if not teste:
-            self.mqtt_client.connect("127.0.0.1", 1883, 60)
-            self.mqtt_client.loop_start()
-
-        # lê sensor dht a cada meia hora: temperatura e umidade
-        if not teste and "dht22" in conf["sensores"]:
-            configDHT()
-
-    @inlineCallbacks
-    def _initialize(self, session, details):
-        # print("Connected to WAMP router")
-        db.log('conexao', 'conectado')
-        self.wamp_session = session
-
-        # reseta valores de reconexão
-        # está mal implementado, se houver mais de um transport não saberei
-        # reseta. tenho que encontrar o transporte em uso na conexão
-        print("resetando valores de reconexão")
-        self._wamp._transports[0].reset()
-
-        try:
-            yield session.register(self.atualizar, self.dispositivo + u'.atualizar')
-            yield session.register(self.update_status, self.dispositivo + u'.status')
-            yield session.register(self.ativar, self.dispositivo + u'.ativar')
-
-            # print("procedimentos registrados")
-            db.log('conexao', 'registro', msg='procedimentos registrados')
-        except Exception as e:
-            # print("Erro: não for possível registrar os procedimentos: {0}".format(e))
-            db.log('conexao', 'registro', msg=str(e), nivel='erro')
-
-    def _uninitialize(self, session, reason):
-        # print(session, reason)
-        # print("Lost WAMP connection")
-        db.log('conexao', 'desconectado', msg=reason.message, nivel='alerta')
-
-        self.wamp_session = None
-
-    def _initialize_mqtt(self, client, userdata, flags, rc):
-        client.subscribe("tratador")
-
-        mqtt_status = LoopingCall(self.mqtt_sendstatus)
-        mqtt_status.start(300, now=True)
-
-        db.log("mqtt", "conectado", msg=str(rc))
-
-    def mqtt_message(self, client, userdata, msg):
-        db.log("mqtt", "mensagem", msg="topico: {}, msg: {}".format(msg.topic, msg.payload))
-
-    def mqtt_sendstatus(self):
-        status = 'on' if (estado["controller"]) else 'off'
-        self.mqtt_client.publish("controlador", status)
-
-    # procedimento que envia agenda atual para quem requisitou
-    def update_status(self, info):
-        msg = None
-        if info == "agenda":
-            msg = self.dumpMsg(self.agenda)
-        elif info == "estado":
-            msg = json.dumps(estado)
-        elif info == "sensores":
-            msg = json.dumps(db.ultimo_dht(), cls=DateTimeEncoder)
-        return msg
-
-    def send_update(self, info):
-        msg = self.update_status("estado")
-        if self.wamp_session is None:
-            db.log('conexao', 'envia status', msg='desconectado', nivel='erro')
-        else:
-            self.wamp_session.publish(self.dispositivo + ".componentes", msg)
-            db.log('conexao', 'envia status', msg='enviado {}: {}'.format(info, msg))
-
-    # lida com mudanças no estado dos pinos de entrada
-    def input_state_thread(self, channel):
-        """essa função é chamada por uma thread que observa a mudança nos estados dos pinos
-         ela nao pode executar diretamente funcoes do twisted, entao essa funcao envia
-         a funcao input_state para ser executado no loop do reator"""
-
-        # esse tempo de espera serve para assegurar que o estado lido é o final
-        # já que ele pode variar rapidamente e muitas vezes quando o contactor liga e desliga
-        sleep(0.1)
-        self.reactor.callFromThread(self.input_state, channel)
-
-    def input_state(self, channel):
-        modulo = None
-        for key, value in input_pins.items():
-            if value == channel:
-                modulo = key
-
-        # atualiza o estado dos pinos na memoria
-        estado[modulo] = not gpio.input(channel)
-        print("input changed: {}: {}".format(modulo, estado[modulo]))
-        # envia atualizacao
-        self.send_update("estado")
-
-    # lida com mudança de estado de pinos de saida
-    def output_state(self, payload):
-        for key in payload:
-            estado[key] = payload[key]
-        self.send_update("estado")
-
-    # lida com as mudancas de estado de modulos remotos
-    def remote_state(self, payload):
-        mudanca = False
-        if b'tratador_presenca' in payload:
-            mudanca = True
-            print("Prensenca no tratador")
-            estado['presenca_tratador'] = dt.datetime.now().isoformat()
-
-        if b'tratador_motor' in payload:
-            mudanca = True
-            print('Tratador ligado: {}'.format(payload[b'tratador_motor'][0]))
-            if payload[b'tratador_motor'][0] == b'true':
-                estado['tratador'] = True
+        if 'aerador' in msg:
+            if msg['aerador']:
+                ligar_aerador()
             else:
-                estado['tratador'] = False
+                desligar_aerador()
 
-        # envia novo status de dispositvos para
-        if mudanca and self.wamp_session:
-            self.send_update("estado")
-            # msg = json.dumps(estado)
-            # url = self.dispositivo + ".componentes"
-            # yield self.wamp_session.publish(url, msg)
-            # db.log('publicacao', url, msg='enviado: ativo')
+        if 'refletor' in msg:
+            if msg['refletor']:
+                ligar_refletor()
+            else:
+                desligar_refletor()
 
-    # liga e desliga os componentes a pedido do cliente
-    def ativar(self, payload):
-        try:
-            msg = json.loads(payload)
-        except Exception:
-            db.log('mensagem', 'ativacao',
-                   msg='Formato de msg nao suportada: ' + str(payload), nivel='alerta')
-        else:
-            db.log('mensagem', 'ativacao', msg=str(msg))
+        if 'tratador' in msg:
+            iniciar_tratador(msg['tratador'])
 
-            if 'aerador' in msg:
-                if msg['aerador']:
-                    ligar_aerador()
-                else:
-                    desligar_aerador()
+        if 'teste' in msg:
+            digitalWrite('teste', msg['teste'])
+            output_state({'teste': msg['teste']})
 
-            if 'refletor' in msg:
-                if msg['refletor']:
-                    self.ligar_refletor()
-                else:
-                    self.desligar_refletor()
+        if 'controlador' in msg:
+            estado['controlador'] = msg['controlador']
 
-            if 'tratador' in msg:
-                self.iniciar_tratador(msg['tratador'])
+            mqtt_sendstatus() if mqtt_client else None
+            for pin in habilitar_pins.values():
+                digitalWrite(pin, estado['controlador'])
 
-            if 'teste' in msg:
-                digitalWrite('teste', msg['teste'])
-                self.output_state({'teste': msg['teste']})
+            send_update('estado')
 
-            if 'controlador' in msg:
-                estado['controlador'] = msg['controlador']
+    # print(json.dumps(pins_state))
+    # return json.dumps(pins_state)
 
-                self.mqtt_sendstatus() if self.mqtt_client else None
-                for pin in habilitar_pins.values():
-                    digitalWrite(pin, estado['controlador'])
 
-                self.send_update('estado')
+# Recebe dados, valida e os executa
+def atualizar(payload):
 
-        # print(json.dumps(pins_state))
-        # return json.dumps(pins_state)
-
-        # Recebe dados, valida e os executa
-    def atualizar(self, payload):
-        resposta = ''
-
-        try:
-            nova_agenda = self.loadMsg(payload)
-        except Exception as e:
-            resposta += 'Alerta, mensagem: ' + str(e)
-            db.log('conexao', 'mensagem', msg=str(e), nivel='alerta')
-
-        else:
-            resposta += 'Atualizado: '
-            if 'tratador' in nova_agenda:
-                resposta += 'Tratador '
-                db.log('tratador', 'atualizado', msg=self.stringfyAgenda(nova_agenda['tratador']))
-                self.attTratador(nova_agenda['tratador'])
-
-            if 'aerador' in nova_agenda:
-                resposta += 'Aeradores'
-                db.log('aerador', 'atualizado', msg=self.stringfyAgenda(nova_agenda['aerador']))
-                self.attAerador(nova_agenda['aerador'])
-
-            # atualiza agenda na memória e no banco de dados
-            for key in nova_agenda:
-                self.agenda[key] = nova_agenda[key]
-
-            db.salva_agenda(nova_agenda)
-
-        return resposta
-
-    def loadMsg(self, message):
+    def loadMsg(message):
         # Tenta converter a mensagem em um dict
         kw = json.loads(message)
         schedule = {}
@@ -435,131 +360,218 @@ class Controlraspi(object):
 
         return schedule
 
-    def dumpMsg(self, entrada):
-        # formato de entrada {'atuador': [[param1, param2], ...], ...}
-        # formato de saida {'atuador': {'0': [param1, param2], ...}, ...}
-        saida = {}
-        for atuador in entrada:
-            agenda = entrada[atuador]
-            atuador_saida = {}
-            for i in range(len(agenda)):
-                evento = agenda[i]
-                a = atuador_saida[str(i)] = []
-                for v in evento:
-                    if type(v) == float:
-                        a.append(str(v))
-                    elif type(v) == dt.time:
-                        a.append(v.strftime('%H:%M'))
 
-            saida[atuador] = atuador_saida
-        return json.dumps(saida)
+    resposta = ''
 
-    def stringfyAgenda(self, agenda):
-        # formato de entrada list = [[param1, param2], ...]
-        # formato de saída str = param1, param2/ ...
-        saida = ""
-        for evento in agenda:
-            for i in range(len(evento)):
-                item = evento[i]
-                if type(item) == dt.time:
-                    saida += item.strftime('%H:%M')
-                else:
-                    saida += str(item)
+    try:
+        nova_agenda = loadMsg(payload)
+    except Exception as e:
+        resposta += 'Alerta, mensagem: ' + str(e)
+        db.log('conexao', 'mensagem', msg=str(e), nivel='alerta')
 
-                if i < len(evento) - 1:
-                    saida += ', '
-            saida += '/ '
-        saida = saida[:-2]
-        return saida
+    else:
+        resposta += 'Atualizado: '
+        if 'tratador' in nova_agenda:
+            resposta += 'Tratador '
+            db.log('tratador', 'atualizado', msg=stringfyAgenda(nova_agenda['tratador']))
+            attTratador(nova_agenda['tratador'])
 
-    # agenda do Aerador tem o formato: [[inicio (datetime), fim (dt)], ...]
-    def attAerador(self, agenda):
+        if 'aerador' in nova_agenda:
+            resposta += 'Aeradores'
+            db.log('aerador', 'atualizado', msg=stringfyAgenda(nova_agenda['aerador']))
+            attAerador(nova_agenda['aerador'])
 
-        # atualiza o estado atual para nova configuração
-        # se agenda está vazia: deslige
-        if agenda:
-            now = dt.datetime.now()
-            last_on = []
-            last_off = []
-            for evento in agenda:
-                inicio = dt.datetime.combine(date=dt.date.today(), time=evento[0])
-                if inicio > now:
-                    inicio -= dt.timedelta(days=1)
-                last_on.append(inicio)
+        # atualiza agenda na memória e no banco de dados
+        for key in nova_agenda:
+            agenda[key] = nova_agenda[key]
 
-                fim = dt.datetime.combine(date=dt.date.today(), time=evento[1])
-                if fim > now:
-                    fim -= dt.timedelta(days=1)
-                last_off.append(fim)
+        db.salva_agenda(nova_agenda)
 
-            last_on = max(last_on)
-            last_off = max(last_off)
+    return resposta
 
-            if last_on > last_off:
-                ligar_aerador()
+
+def stringfyAgenda(agenda):
+    # formato de entrada list = [[param1, param2], ...]
+    # formato de saída str = param1, param2/ ...
+    saida = ""
+    for evento in agenda:
+        for i in range(len(evento)):
+            item = evento[i]
+            if type(item) == dt.time:
+                saida += item.strftime('%H:%M')
             else:
-                desligar_aerador()
+                saida += str(item)
+
+            if i < len(evento) - 1:
+                saida += ', '
+        saida += '/ '
+    saida = saida[:-2]
+    return saida
+
+
+# agenda do Aerador tem o formato: [[inicio (datetime), fim (dt)], ...]
+def attAerador(agenda):
+
+    # atualiza o estado atual para nova configuração
+    # se agenda está vazia: deslige
+    if agenda:
+        now = dt.datetime.now()
+        last_on = []
+        last_off = []
+        for evento in agenda:
+            inicio = dt.datetime.combine(date=dt.date.today(), time=evento[0])
+            if inicio > now:
+                inicio -= dt.timedelta(days=1)
+            last_on.append(inicio)
+
+            fim = dt.datetime.combine(date=dt.date.today(), time=evento[1])
+            if fim > now:
+                fim -= dt.timedelta(days=1)
+            last_off.append(fim)
+
+        last_on = max(last_on)
+        last_off = max(last_off)
+
+        if last_on > last_off:
+            ligar_aerador()
         else:
             desligar_aerador()
+    else:
+        desligar_aerador()
 
-        # exclui alarmes antigos
-        jobs = scheduler.get_jobs()
-        for job in jobs:
-            if job.id == 'ligar_aerador' or job.id == 'desligar_aerador':
-                job.remove()
+    # exclui alarmes antigos
+    jobs = scheduler.get_jobs()
+    for job in jobs:
+        if job.id == 'ligar_aerador' or job.id == 'desligar_aerador':
+            job.remove()
 
-        # cria alarmes para o acionamento dos aeradores.
-        # coloquei o replace() para garantir que a açao de ligar será
-        # executada depois de desligar, assim se houver eventos de desligar e
-        # ligar no mesmo horário 'ligar' será o último a ser executador
-        lista_alarmes = [self.geraCronTrigger(evento[0].replace(second=1)) for evento in agenda]
-        trigger = OrTrigger(lista_alarmes)
-        scheduler.add_job(ligar_aerador, trigger, id='ligar_aerador')
+    # cria alarmes para o acionamento dos aeradores.
+    # coloquei o replace() para garantir que a açao de ligar será
+    # executada depois de desligar, assim se houver eventos de desligar e
+    # ligar no mesmo horário 'ligar' será o último a ser executador
+    lista_alarmes = [geraCronTrigger(evento[0].replace(second=1)) for evento in agenda]
+    trigger = OrTrigger(lista_alarmes)
+    scheduler.add_job(ligar_aerador, trigger, id='ligar_aerador')
 
-        # cria alarmes para o desligamento
-        lista_alarmes = [self.geraCronTrigger(evento[1]) for evento in agenda]
-        trigger = OrTrigger(lista_alarmes)
-        scheduler.add_job(desligar_aerador, trigger, id='desligar_aerador')
+    # cria alarmes para o desligamento
+    lista_alarmes = [geraCronTrigger(evento[1]) for evento in agenda]
+    trigger = OrTrigger(lista_alarmes)
+    scheduler.add_job(desligar_aerador, trigger, id='desligar_aerador')
 
-    # agenda do Tratador tem o formato [[hora (datetime), ração (int)], ...]
-    def attTratador(self, agenda):
 
-        # exclui jobs antigos
-        jobs = scheduler.get_jobs()
-        for job in jobs:
-            if 'ligar_tratador' in job.id:
-                job.remove()
+# agenda do Tratador tem o formato [[hora (datetime), ração (int)], ...]
+def attTratador(agenda):
 
-        # gera novos jobs
-        for i in range(len(agenda)):
-            scheduler.add_job(
-                ligar_tratador, self.geraCronTrigger(agenda[i][0]),
-                args=[agenda[i][1]], id='ligar_tratador_' + str(i))
+    # exclui jobs antigos
+    jobs = scheduler.get_jobs()
+    for job in jobs:
+        if 'ligar_tratador' in job.id:
+            job.remove()
 
-    # envelopes para atualizar o estados na memoria dos pinos de saida
-    # que nao possuem um correspondente de entrada
-    def ligar_refletor(self):
-        ligar_refletor()
-        self.output_state({"refletor": True})
+    # gera novos jobs
+    for i in range(len(agenda)):
+        scheduler.add_job(
+            ligar_tratador, geraCronTrigger(agenda[i][0]),
+            args=[agenda[i][1]], id='ligar_tratador_' + str(i))
 
-    def desligar_refletor(self):
-        desligar_refletor()
-        self.output_state({"refletor": False})
 
-    def iniciar_tratador(self, freq):
-        try:
-            freq = float(freq)
-            if not 10 <= freq <= 120:
-                raise ValueError("Frequencia {} fora da faixa permita: 10-120".format(freq))
-        except Exception as e:
-            db.log("ativar", "ativar tratador", msg=str(e), nivel="alerta")
-        else:
-            # converte a frequencia do motor para a da entrada de freq
-            # entrada: min = 3, max = 120
-            # saida: min = 500, max = 2500
-            # o 0.5 serve pora arredondar
-            freq = int((freq - 3) * (2500 - 500) / (120 - 3) + 500 + 0.5)
-            self.mqtt_client.publish("controlador", "cycle:freq{}".format(freq))
+def geraCronTrigger(time):
+    return CronTrigger(hour=time.hour, minute=time.minute, second=time.second)
 
-    def geraCronTrigger(self, time):
-        return CronTrigger(hour=time.hour, minute=time.minute, second=time.second)
+
+def ligar_tratador(quantidade):
+    # print('Tratador: ligado', racao)
+    db.log('tratador', 'ligado', msg='quantidade: ' + str(quantidade))
+    # digitalWrite(pins['tratador'], True)
+
+
+def ligar_aerador():
+    db.log('aerador', 'ligado')
+    digitalWrite(output_pins['aerador'], True)
+
+
+def desligar_aerador():
+    db.log('aerador', 'desligado')
+    digitalWrite(output_pins['aerador'], False)
+
+
+def ligar_refletor():
+    db.log('refletor', 'ligado')
+    digitalWrite(output_pins['refletor'], True)
+    output_state({"refletor": True})
+
+
+def desligar_refletor():
+    db.log('refletor', 'desligado')
+    digitalWrite(output_pins['refletor'], False)
+    output_state({"refletor": False})
+
+
+def iniciar_tratador(freq):
+    try:
+        freq = float(freq)
+        if not 10 <= freq <= 120:
+            raise ValueError("Frequencia {} fora da faixa permita: 10-120".format(freq))
+    except Exception as e:
+        db.log("ativar", "ativar tratador", msg=str(e), nivel="alerta")
+    else:
+        # converte a frequencia do motor para a da entrada de freq
+        # entrada: min = 3, max = 120
+        # saida: min = 500, max = 2500
+        # o 0.5 serve pora arredondar
+        freq = int((freq - 3) * (2500 - 500) / (120 - 3) + 500 + 0.5)
+        mqtt_client.publish("controlador", "cycle:freq{}".format(freq))
+
+
+# configurações para o raspi
+def configGPIO():
+    import RPi.GPIO as GPIO
+    global gpio
+    gpio = GPIO
+
+    gpio.setmode(gpio.BCM)
+    for pin in output_pins:
+        gpio.setup(output_pins[pin], gpio.OUT, initial=gpio.HIGH)
+
+    for pin in input_pins:
+        gpio.setup(input_pins[pin], gpio.IN, pull_up_down=gpio.PUD_UP)
+
+    for pin in estado:
+        if pin in input_pins:
+            estado[pin] = not gpio.input(input_pins[pin])
+        elif conf["entradas"][pin] == "saida":
+            estado[pin] = not gpio.input(output_pins[pin])
+
+    for pin in habilitar_pins.values():
+        gpio.setup(output_pins[pin], gpio.OUT, initial=gpio.LOW)
+
+
+def configDHT():
+    # import do sensor dht de temp e umidade
+    import read_dht
+
+    pin = conf["sensores"]["dht22"]
+    dht = LoopingCall(read_dht.read_threaded, '22', pin, db)
+    dht.start(1800, now=True)
+
+
+# executa ações com os pinos de saida
+def digitalWrite(pin, state):
+    if type(pin) == str:
+        pin = output_pins[pin]
+
+    if gpio:
+        # o relê liga em LOW, por isso o not na frente de state
+        gpio.output(pin, not state)
+
+
+# Encoder de datetime para json
+class DateTimeEncoder(json.JSONEncoder):
+    '''Regra que converte datetime em string nos jsons'''
+
+    def default(self, o):
+        if isinstance(o, dt.datetime):
+            o = o.replace(microsecond=0)
+            return o.isoformat(' ')
+
+        return super().default(o)
