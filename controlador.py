@@ -21,7 +21,7 @@ import paho.mqtt.client as mqtt
 path = os.path.dirname(os.path.realpath(__file__))
 
 # carrega arquivo de configurações
-with open(path + '/controlraspi.json') as f:
+with open(path + '/controlador.json') as f:
     conf = json.load(f)
 
 output_pins = {key: val for key, val in conf["saidas"].items() if type(val) == int}
@@ -42,16 +42,12 @@ scheduler.add_jobstore('sqlalchemy', engine=db.engine)
 # variáveis globais
 dispositivo = None
 agenda = None
-
-wamp_session = None
 wamp_comp = None
-
+wamp_session = None
+mqtt_client = None
 reactor = None
 
-mqtt_client = None
-
-
-def start(wamp, reactor, teste=False):
+def start(wamp, twisted_reactor, teste=False):
     global dispositivo, agenda, wamp_comp, wamp_session, mqtt_client, reactor
 
     estado["controlador"] = True
@@ -65,7 +61,7 @@ def start(wamp, reactor, teste=False):
     wamp_comp.on('join', wamp_initialize)
     wamp_comp.on('leave', wamp_uninitialize)
 
-    reactor = reactor
+    reactor = twisted_reactor
 
     # configura pinos do raspberry
     if teste:
@@ -73,7 +69,7 @@ def start(wamp, reactor, teste=False):
         dispositivo = u'teste'
     else:
         modo = 'GPIO habilitados'
-        configGPIO()
+        config_gpio()
         # configura interruptores
         for val in input_pins.values():
             if type(val) == int:
@@ -89,19 +85,33 @@ def start(wamp, reactor, teste=False):
 
     scheduler.start()
 
-    # configura cliente mqtt para se comunicar com componentes remotos pela rede
-    mqtt_client = mqtt.Client()
-    mqtt_client.on_connect = mqtt_initialize
-    mqtt_client.on_message = mqtt_message
-
-    mqtt_client = None
     if not teste:
+        # configura cliente mqtt para se comunicar com componentes remotos pela rede
+        mqtt_client = mqtt.Client()
+        mqtt_client.on_connect = mqtt_initialize
+        mqtt_client.on_message = mqtt_message
+
         mqtt_client.connect("127.0.0.1", 1883, 60)
         mqtt_client.loop_start()
 
     # lê sensor dht a cada meia hora: temperatura e umidade
     if not teste and "dht22" in conf["sensores"]:
-        configDHT()
+        config_dht()
+
+
+def stop(exception):
+    db.log('app', 'desligamento', msg=str(exception), nivel='erro')
+    db.log('app', 'desligamento', msg='limpando pinos')
+
+    if wamp_session:
+        wamp_session.leave()
+
+    if mqtt_client:
+        mqtt_client.disconnect()
+        mqtt_client.loop_stop()
+
+    if gpio:
+        gpio.cleanup()
 
 
 @inlineCallbacks
@@ -143,8 +153,7 @@ def wamp_uninitialize(session, reason):
 def mqtt_initialize(client, userdata, flags, rc):
     client.subscribe("tratador")
 
-    mqtt_status = LoopingCall(mqtt_sendstatus)
-    mqtt_status.start(300, now=True)
+    LoopingCall(mqtt_sendstatus).start(300, now=True)
 
     db.log("mqtt", "conectado", msg=str(rc))
 
@@ -293,14 +302,11 @@ def ativar(payload):
 
             send_update('estado')
 
-    # print(json.dumps(pins_state))
-    # return json.dumps(pins_state)
-
 
 # Recebe dados, valida e os executa
 def atualizar(payload):
 
-    def loadMsg(message):
+    def load_msg(message):
         # Tenta converter a mensagem em um dict
         kw = json.loads(message)
         schedule = {}
@@ -360,11 +366,10 @@ def atualizar(payload):
 
         return schedule
 
-
     resposta = ''
 
     try:
-        nova_agenda = loadMsg(payload)
+        nova_agenda = load_msg(payload)
     except Exception as e:
         resposta += 'Alerta, mensagem: ' + str(e)
         db.log('conexao', 'mensagem', msg=str(e), nivel='alerta')
@@ -373,13 +378,13 @@ def atualizar(payload):
         resposta += 'Atualizado: '
         if 'tratador' in nova_agenda:
             resposta += 'Tratador '
-            db.log('tratador', 'atualizado', msg=stringfyAgenda(nova_agenda['tratador']))
-            attTratador(nova_agenda['tratador'])
+            db.log('agenda', 'tratador atualizado', msg=stringfy_agenda(nova_agenda['tratador']))
+            atl_tratador(nova_agenda['tratador'])
 
         if 'aerador' in nova_agenda:
             resposta += 'Aeradores'
-            db.log('aerador', 'atualizado', msg=stringfyAgenda(nova_agenda['aerador']))
-            attAerador(nova_agenda['aerador'])
+            db.log('agenda', 'aerador atualizado', msg=stringfy_agenda(nova_agenda['aerador']))
+            atl_aerador(nova_agenda['aerador'])
 
         # atualiza agenda na memória e no banco de dados
         for key in nova_agenda:
@@ -390,7 +395,7 @@ def atualizar(payload):
     return resposta
 
 
-def stringfyAgenda(agenda):
+def stringfy_agenda(agenda):
     # formato de entrada list = [[param1, param2], ...]
     # formato de saída str = param1, param2/ ...
     saida = ""
@@ -410,7 +415,7 @@ def stringfyAgenda(agenda):
 
 
 # agenda do Aerador tem o formato: [[inicio (datetime), fim (dt)], ...]
-def attAerador(agenda):
+def atl_aerador(agenda):
 
     # atualiza o estado atual para nova configuração
     # se agenda está vazia: deslige
@@ -449,40 +454,34 @@ def attAerador(agenda):
     # coloquei o replace() para garantir que a açao de ligar será
     # executada depois de desligar, assim se houver eventos de desligar e
     # ligar no mesmo horário 'ligar' será o último a ser executador
-    lista_alarmes = [geraCronTrigger(evento[0].replace(second=1)) for evento in agenda]
+    lista_alarmes = [gera_CronTrigger(evento[0].replace(second=1)) for evento in agenda]
     trigger = OrTrigger(lista_alarmes)
     scheduler.add_job(ligar_aerador, trigger, id='ligar_aerador')
 
     # cria alarmes para o desligamento
-    lista_alarmes = [geraCronTrigger(evento[1]) for evento in agenda]
+    lista_alarmes = [gera_CronTrigger(evento[1]) for evento in agenda]
     trigger = OrTrigger(lista_alarmes)
     scheduler.add_job(desligar_aerador, trigger, id='desligar_aerador')
 
 
 # agenda do Tratador tem o formato [[hora (datetime), ração (int)], ...]
-def attTratador(agenda):
+def atl_tratador(agenda):
 
     # exclui jobs antigos
     jobs = scheduler.get_jobs()
     for job in jobs:
-        if 'ligar_tratador' in job.id:
+        if 'iniciar_tratador' in job.id:
             job.remove()
 
     # gera novos jobs
     for i in range(len(agenda)):
         scheduler.add_job(
-            ligar_tratador, geraCronTrigger(agenda[i][0]),
-            args=[agenda[i][1]], id='ligar_tratador_' + str(i))
+            iniciar_tratador, gera_CronTrigger(agenda[i][0]),
+            args=[agenda[i][1]], id='iniciar_tratador_' + str(i))
 
 
-def geraCronTrigger(time):
+def gera_CronTrigger(time):
     return CronTrigger(hour=time.hour, minute=time.minute, second=time.second)
-
-
-def ligar_tratador(quantidade):
-    # print('Tratador: ligado', racao)
-    db.log('tratador', 'ligado', msg='quantidade: ' + str(quantidade))
-    # digitalWrite(pins['tratador'], True)
 
 
 def ligar_aerador():
@@ -520,11 +519,14 @@ def iniciar_tratador(freq):
         # saida: min = 500, max = 2500
         # o 0.5 serve pora arredondar
         freq = int((freq - 3) * (2500 - 500) / (120 - 3) + 500 + 0.5)
-        mqtt_client.publish("controlador", "cycle:freq{}".format(freq))
+        if mqtt_client:
+            mqtt_client.publish("controlador", "cycle:freq{}".format(freq))
+
+        db.log('tratador', 'iniciado', msg='freq: {}'.format(freq))
 
 
 # configurações para o raspi
-def configGPIO():
+def config_gpio():
     import RPi.GPIO as GPIO
     global gpio
     gpio = GPIO
@@ -546,13 +548,12 @@ def configGPIO():
         gpio.setup(output_pins[pin], gpio.OUT, initial=gpio.LOW)
 
 
-def configDHT():
+def config_dht():
     # import do sensor dht de temp e umidade
     import read_dht
 
     pin = conf["sensores"]["dht22"]
-    dht = LoopingCall(read_dht.read_threaded, '22', pin, db)
-    dht.start(1800, now=True)
+    LoopingCall(read_dht.read_threaded, '22', pin, db).start(1800, now=True)
 
 
 # executa ações com os pinos de saida
