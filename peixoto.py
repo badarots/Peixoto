@@ -6,7 +6,7 @@ from twisted.internet.defer import Deferred, inlineCallbacks
 from twisted.internet.task import react
 
 # import do controlador do raspi
-import controlraspi as app
+import controlador
 
 
 @inlineCallbacks
@@ -45,13 +45,13 @@ def main(reactor, teste):
     txaio.start_logging(level='info')
 
     # cria app principal
-    controller = app.Controlraspi(component, reactor, teste=teste)
+    controlador.start(component, reactor, teste=teste)
 
     # we don't *have* to hand over control of the reactor to
     # component.run -- if we don't want to, we call .start()
     # The Deferred it returns fires when the component is "completed"
     # (or errbacks on any problems).
-    comp_d = controller._wamp.start(reactor)
+    wamp_d = controlador.wamp_comp.start(reactor)
 
     # If the Component raises an exception we want to exit. Note that
     # things like failing to connect will be swallowed by the
@@ -60,7 +60,7 @@ def main(reactor, teste):
     def _failed(f):
         print("Component failed: {}".format(f))
         done.errback(f)
-    comp_d.addErrback(_failed)
+    wamp_d.addErrback(_failed)
 
     # wait forever (unless the Component raises an error)
     done = Deferred()
@@ -74,6 +74,6 @@ if __name__ == '__main__':
     try:
         react(main, [teste])
     except (KeyboardInterrupt, SystemExit) as e:
-        app.exit(e)
+        controlador.stop(e)
     except Exception as e:
-        app.exit(e)
+        controlador.stop(e)
