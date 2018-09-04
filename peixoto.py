@@ -1,79 +1,83 @@
 import sys
+import asyncio
 
 # import para o autobahn
-from autobahn.twisted.component import Component
-from twisted.internet.defer import Deferred, inlineCallbacks
-from twisted.internet.task import react
+from autobahn.asyncio.component import Component
+import txaio
+import signal
+from functools import partial
 
 # import do controlador do raspi
 import controlador
 
+def main(loop, components, teste):
 
-@inlineCallbacks
-def main(reactor, teste):
-    wsurl = u"ws://localhost/ws"
-    if acesso_remoto:
-        wsurl = u"ws://201.131.170.231:8080/ws"
-        # wsurl = u"ws://192.168.1.70/ws"
-    print('host:', wsurl)
-
-    # configuração do cliente WAMP
-    component = Component(
-        transports=[
-            {
-                u"url": wsurl,
-
-                # you can set various websocket options here if you want
-                u"max_retries": -1,
-                u"initial_retry_delay": 5,
-                u"options": {
-                    u"open_handshake_timeout": 30,
-                }
-            },
-        ],
-        realm=u"realm1",
-        authentication={
-            u"wampcra": {
-                u"authid": u"raspi",
-                u"secret": "1234"
-            }
-        }
-    )
-
-    # When not using run() we also must start logging ourselves.
-    import txaio
     txaio.start_logging(level='info')
+    log = txaio.make_logger()
 
-    # cria app principal
-    controlador.start(component, reactor, teste=teste)
+    async def exit():
+        return loop.stop()
 
-    # we don't *have* to hand over control of the reactor to
-    # component.run -- if we don't want to, we call .start()
-    # The Deferred it returns fires when the component is "completed"
-    # (or errbacks on any problems).
-    wamp_d = controlador.wamp_comp.start(reactor)
+    def nicely_exit(signal):
+        log.info("Shutting down due to {signal}", signal=signal)
 
-    # If the Component raises an exception we want to exit. Note that
-    # things like failing to connect will be swallowed by the
-    # re-connection mechanisms already so won't reach here.
+        controlador.stop(signal)
 
-    def _failed(f):
-        print("Component failed: {}".format(f))
-        done.errback(f)
-    wamp_d.addErrback(_failed)
+        for task in asyncio.Task.all_tasks():
+            task.cancel()
+        asyncio.ensure_future(exit())
 
-    # wait forever (unless the Component raises an error)
-    done = Deferred()
-    yield done
+    loop.add_signal_handler(signal.SIGINT, partial(nicely_exit, 'SIGINT'))
+    loop.add_signal_handler(signal.SIGTERM, partial(nicely_exit, 'SIGTERM'))
 
-
-if __name__ == '__main__':
-    teste = ('teste' in sys.argv)
-    acesso_remoto = ('remoto' in sys.argv)
+    controlador.start(loop, component, teste)
+    # returns a future; could run_until_complete() but see below
+    component.start(loop)
 
     try:
-        react(main, [teste])
-    except (KeyboardInterrupt, SystemExit) as e:
-        controlador.stop(e)
-    except Exception as e:
-        controlador.stop(e)
+        print('loop run_forever')
+        loop.run_forever()
+        # this is probably more-correct, but then you always get
+        # "Event loop stopped before Future completed":
+        # loop.run_until_complete(f)
+    except asyncio.CancelledError:
+        pass
+
+    loop.close()
+
+
+teste = ('teste' in sys.argv)
+acesso_remoto = ('remoto' in sys.argv)
+
+wsurl = "ws://localhost/ws"
+if acesso_remoto:
+    wsurl = "ws://201.131.170.231:8080/ws"
+    # wsurl = u"ws://192.168.1.70/ws"
+print('host:', wsurl)
+
+component = Component(
+    transports=[
+        {
+            "url": wsurl,
+
+            # you can set various websocket options here if you want
+            "max_retries": -1,
+            "initial_retry_delay": 5,
+            "options": {
+                "open_handshake_timeout": 30,
+            }
+        },
+    ],
+    realm="realm1",
+    authentication={
+        "wampcra": {
+            "authid": "raspi",
+            "secret": "1234"
+        }
+    }
+)
+
+if __name__ == '__main__':
+    loop = asyncio.get_event_loop()
+
+    main(loop, component, teste)

@@ -1,13 +1,11 @@
 import os
 import json
-from time import sleep
 
 import datetime as dt
-from twisted.internet.defer import inlineCallbacks
-from twisted.internet.task import LoopingCall
+import asyncio
 
 # import para o APScheler
-from apscheduler.schedulers.twisted import TwistedScheduler
+from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.combining import OrTrigger
 from apscheduler.triggers.cron import CronTrigger
 
@@ -34,7 +32,7 @@ sensor_pins = conf["sensores"]
 gpio = None
 
 # criação do scheduler
-scheduler = TwistedScheduler()
+scheduler = AsyncIOScheduler()
 # configurações do scheduler
 scheduler = scheduler
 scheduler.add_jobstore('sqlalchemy', engine=db.engine)
@@ -45,10 +43,10 @@ agenda = None
 wamp_comp = None
 wamp_session = None
 mqtt_client = None
-reactor = None
+loop = None
 
-def start(wamp, twisted_reactor, teste=False):
-    global dispositivo, agenda, wamp_comp, wamp_session, mqtt_client, reactor
+def start(event_loop, wamp, teste=False):
+    global dispositivo, agenda, wamp_comp, wamp_session, mqtt_client, loop
 
     estado["controlador"] = True
 
@@ -61,7 +59,7 @@ def start(wamp, twisted_reactor, teste=False):
     wamp_comp.on('join', wamp_initialize)
     wamp_comp.on('leave', wamp_uninitialize)
 
-    reactor = twisted_reactor
+    loop = event_loop
 
     # configura pinos do raspberry
     if teste:
@@ -114,8 +112,13 @@ def stop(exception):
         gpio.cleanup()
 
 
-@inlineCallbacks
-def wamp_initialize(session, details):
+async def repeating_call(interval, f, *args):
+    while True:
+        f(*args)
+        await asyncio.sleep(interval)
+
+
+async def wamp_initialize(session, details):
     global wamp_session
 
     # print("Connected to WAMP router")
@@ -129,9 +132,9 @@ def wamp_initialize(session, details):
     wamp_comp._transports[0].reset()
 
     try:
-        yield session.register(atualizar, dispositivo + u'.atualizar')
-        yield session.register(update_status, dispositivo + u'.status')
-        yield session.register(ativar, dispositivo + u'.ativar')
+        await session.register(atualizar, dispositivo + u'.atualizar')
+        await session.register(update_status, dispositivo + u'.status')
+        await session.register(ativar, dispositivo + u'.ativar')
 
         # print("procedimentos registrados")
         db.log('conexao', 'registro', msg='procedimentos registrados')
@@ -153,7 +156,7 @@ def wamp_uninitialize(session, reason):
 def mqtt_initialize(client, userdata, flags, rc):
     client.subscribe("tratador")
 
-    LoopingCall(mqtt_sendstatus).start(300, now=True)
+    loop.create_task(repeating_call(300, mqtt_sendstatus))
 
     db.log("mqtt", "conectado", msg=str(rc))
 
@@ -163,8 +166,9 @@ def mqtt_message(client, userdata, msg):
 
 
 def mqtt_sendstatus():
-    status = 'on' if (estado["controller"]) else 'off'
-    mqtt_client.publish("controlador", status)
+    while True:
+        status = 'on' if (estado["controller"]) else 'off'
+        mqtt_client.publish("controlador", status)
 
 
 # procedimento que envia agenda atual para quem requisitou
@@ -214,12 +218,14 @@ def input_state_thread(channel):
      ela nao pode executar diretamente funcoes do twisted, entao essa funcao envia
      a funcao input_state para ser executado no loop do reator"""
 
+    asyncio.run_coroutine_threadsafe(input_state(channel), loop=loop)
+
+async def input_state(channel):
     # esse tempo de espera serve para assegurar que o estado lido é o final
     # já que ele pode variar rapidamente e muitas vezes quando o contactor liga e desliga
-    sleep(0.1)
-    reactor.callFromThread(input_state, channel)
 
-def input_state(channel):
+    await asyncio.sleep(0.1)
+
     modulo = None
     for key, value in input_pins.items():
         if value == channel:
@@ -553,7 +559,8 @@ def config_dht():
     import read_dht
 
     pin = conf["sensores"]["dht22"]
-    LoopingCall(read_dht.read_threaded, '22', pin, db).start(1800, now=True)
+    loop.create_task(repeating_call(1800, read_dht.read_threaded, '22', pin, db))
+    # LoopingCall(read_dht.read_threaded, '22', pin, db).start(1800, now=True)
 
 
 # executa ações com os pinos de saida

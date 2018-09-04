@@ -1,0 +1,49 @@
+{
+    "componetes": {
+        "refletor": {
+            "tipo": "interruptor",
+            "protocolo": "gpio",
+            "controle": 27
+        },
+        "aerador_tri": {
+            "tipo": "interruptor",
+            "protocolo": "gpio",
+            "controle": 4,
+            "estado": 23
+        },
+        "tratador": {
+            "tipo": "weq100",
+            "protocolo": "mqtt",
+            "topico": "tratador",
+            "controle": "cycle:freq",
+            "estado": "motor:"
+        },
+        "dht22": {
+            "tipo": "dht22",
+            "protocolo": "gpio",
+            "controle": 18
+        },
+        "presenca_quiosque": {
+            "tipo": "interruptor",
+            "protocolo": "gpio",
+            "estado": 10
+        },
+        "presenca_tratador": {
+            "tipo": "interruptor",
+            "protocolo": "mqtt",
+            "topico": "tratador",
+            "estado": "presenca:"
+        }
+    },
+    "conexoes": {
+        "wamp": {
+            "host": "ws:201.131.170.232:8080/ws",
+            "usuario": "badaro",
+            "senha": "1234"
+        },
+        "mqtt": {
+            "host": "127.0.0.1",
+            "port": 1883
+        }
+    }
+}
